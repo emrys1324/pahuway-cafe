@@ -76,6 +76,7 @@ async function appPage(browser, opts, device = devices["Pixel 7"]) {
 const calls = (p) => p.evaluate(() => window.__nativeCalls);
 
 (async () => {
+  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
   const { execFileSync } = require("child_process");
   const sql = (q) => execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", q]).toString().trim();
   sql("delete from push_tokens; update store_settings set open_time='00:00', close_time='00:00', is_open=true;");

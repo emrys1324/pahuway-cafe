@@ -78,6 +78,7 @@ export function SettingsAdmin() {
         background_url: s.background_url || null,
         background_fade: Math.min(95, Math.max(40, Number(s.background_fade) || 85)),
         online_payments_enabled: !!s.online_payments_enabled,
+        require_account: s.require_account !== false,
       })
       .eq("id", 1);
     setBusy(false);
@@ -150,6 +151,25 @@ export function SettingsAdmin() {
               <input id="prep" type="number" min={5} max={120} className="input" value={s.prep_minutes} onChange={(e) => set("prep_minutes", e.target.value as unknown as number)} />
             </div>
           </div>
+        </section>
+
+        <section className="card space-y-2 p-5">
+          <h2 className="section-title">Customer accounts</h2>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5 accent-coffee-700"
+              checked={s.require_account !== false}
+              onChange={(e) => set("require_account", e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">Customers must sign in to order or book</span>
+              <span className="block text-sm text-coffee-600">
+                Anyone can browse the menu and scooters. To place a café order or book a scooter, customers sign in or create an
+                account (with Google or a mobile number). Turn off to allow guest orders.
+              </span>
+            </span>
+          </label>
         </section>
 
         <OnlinePaymentsSection enabled={!!s.online_payments_enabled} onChange={(v) => set("online_payments_enabled", v)} />

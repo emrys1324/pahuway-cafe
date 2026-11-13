@@ -1,6 +1,7 @@
 -- Scenario tests for the database rules. Run against a scratch DB after the
 -- migration + seed (see README "Testing the database rules").
 \set ON_ERROR_STOP 1
+update store_settings set require_account = false;  -- guest scenarios; the sign-in rule is tested on its own
 grant all on all tables in schema public to anon, authenticated;
 grant all on all sequences in schema public to anon, authenticated;
 grant all on storage.objects to anon, authenticated;
@@ -155,3 +156,11 @@ do $$ begin
   end if;
   raise notice 'ok GCash order without a reference number is accepted (the screenshot is enough)';
 end $$;
+
+-- accounts required: guests can't order
+update store_settings set require_account = true;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+select pg_temp.expect_error($q$select place_order('{"customer_name":"Al","customer_phone":"09171234567","order_type":"pickup","payment_method":"cash"}', '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":1}]')$q$, 'SIGN_IN');
+reset role;
+update store_settings set require_account = false;

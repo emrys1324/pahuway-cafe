@@ -14,6 +14,7 @@ const assert = (c, m) => {
 };
 
 (async () => {
+  require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", "update store_settings set require_account = false"]); // guest orders/bookings (the sign-in gate has its own test)
   const browser = await chromium.launch();
   const admin = await (await browser.newContext({ ...devices["iPad (gen 7) landscape"] })).newPage();
   const cust = await (await browser.newContext({ ...devices["iPhone 13"] })).newPage();

@@ -14,7 +14,11 @@ import { formatDateTime } from "@/lib/hours";
 import { useStoreSettings } from "@/lib/store-settings";
 import { accountTexts } from "@/lib/brands";
 import { isPhoneLoginEmail, phoneLoginEmail } from "@/lib/phone-login";
+import { safeNext } from "@/lib/google-signin";
+import { GoogleButton } from "@/components/customer/GoogleButton";
+import { useSearchParams } from "next/navigation";
 import type { Order, Zone } from "@/lib/types";
+import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/rentals";
 import type { User } from "@supabase/supabase-js";
 
 interface Profile {
@@ -31,6 +35,8 @@ interface Profile {
 export function AccountScreen() {
   const { settings, open } = useStoreSettings();
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const params = useSearchParams();
+  const next = params.get("next") ? safeNext(params.get("next")) : null;
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -43,16 +49,16 @@ export function AccountScreen() {
     <div className="min-h-screen pb-10">
       <StoreHeader settings={settings} open={open} back="/" brand="account" />
       <main className="mx-auto max-w-lg px-4 py-5">
-        {user === undefined ? <PageLoader /> : user ? <Profile user={user} /> : <AuthForms />}
+        {user === undefined ? <PageLoader /> : user ? <Profile user={user} next={next} /> : <AuthForms next={next} initialMode={params.get("mode") === "signup" ? "signup" : "signin"} />}
       </main>
     </div>
   );
 }
 
-function AuthForms() {
+function AuthForms({ next, initialMode }: { next: string | null; initialMode: "signin" | "signup" }) {
   const { settings } = useStoreSettings();
   const at = accountTexts(settings);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -91,7 +97,7 @@ function AuthForms() {
       const { data, error } = await supabase.auth.signUp({
         email: em,
         password,
-        options: { data: { full_name: name.trim(), phone: p }, emailRedirectTo: `${window.location.origin}/account` },
+        options: { data: { full_name: name.trim(), phone: p }, emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next ?? "/account")}` },
       });
       setBusy(false);
       if (error) return setMsg({ tone: "red", text: error.message });
@@ -119,6 +125,12 @@ function AuthForms() {
             {m === "signin" ? "Sign in" : "Sign up"}
           </button>
         ))}
+      </div>
+      {next && <Alert tone="amber">Please sign in or create an account to continue. We&apos;ll bring you right back.</Alert>}
+      <GoogleButton next={next ?? "/account"} />
+      <div className="flex items-center gap-3 text-sm text-coffee-600">
+        <span className="h-px flex-1 bg-coffee-200" /> or with your {mode === "signin" ? "email or mobile number" : "mobile number"}{" "}
+        <span className="h-px flex-1 bg-coffee-200" />
       </div>
       <form onSubmit={submit} className="card space-y-4 p-5">
         {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
@@ -293,8 +305,19 @@ function ChangePassword() {
   );
 }
 
-function Profile({ user }: { user: User }) {
+interface MyBooking {
+  id: string;
+  booking_number: string;
+  public_token: string;
+  pickup_at: string | null;
+  start_date: string;
+  scooter_name: string;
+  status: BookingStatus;
+}
+
+function Profile({ user, next }: { user: User; next: string | null }) {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [bookings, setBookings] = useState<MyBooking[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [saving, setSaving] = useState(false);
@@ -302,15 +325,24 @@ function Profile({ user }: { user: User }) {
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
-    const [p, z, o] = await Promise.all([
+    const [p, z, o, b] = await Promise.all([
       supabase.from("users").select("role, full_name, phone, zone_id, street, landmark, saved_lat, saved_lng").eq("id", user.id).single(),
       supabase.from("delivery_zones").select("*").eq("is_active", true).order("sort_order"),
       supabase.from("orders").select("*").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(20),
+      supabase
+        .from("rental_bookings")
+        .select("id, booking_number, public_token, pickup_at, start_date, scooter_name, status")
+        .eq("customer_user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
+    setBookings((b.data as MyBooking[]) ?? []);
+    // signed in to continue an order/booking and nothing is missing → go straight back
+    if (next && normalizePhone((p.data as Profile | null)?.phone ?? "")) window.location.replace(next);
     setProfile((p.data as Profile) ?? { role: "customer", full_name: "", phone: "", zone_id: null, street: "", landmark: "", saved_lat: null, saved_lng: null });
     setZones((z.data as Zone[]) ?? []);
     setOrders((o.data as Order[]) ?? []);
-  }, [user.id]);
+  }, [user.id, next]);
 
   useEffect(() => {
     load();
@@ -360,6 +392,27 @@ function Profile({ user }: { user: User }) {
           Sign out
         </button>
       </div>
+
+      {next && (
+        <div className="card space-y-3 p-5" data-testid="continue-next">
+          {!normalizePhone(profile.phone ?? "") ? (
+            <MissingPhone
+              userId={user.id}
+              onSaved={(phone) => {
+                put({ phone });
+                window.location.replace(next);
+              }}
+            />
+          ) : (
+            <>
+              <p className="font-semibold">You&apos;re signed in.</p>
+              <Link href={next} className="btn-primary w-full">
+                Continue
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
       {(profile.role === "admin" || profile.role === "staff") && (
         <Link href="/admin" className="btn-primary w-full">
@@ -444,6 +497,29 @@ function Profile({ user }: { user: User }) {
         )}
       </section>
 
+      <section className="card p-5" data-testid="my-bookings">
+        <h2 className="section-title mb-2">My scooter bookings</h2>
+        {bookings.length === 0 ? (
+          <p className="text-coffee-700">No bookings yet. Scooters you book while signed in will show here.</p>
+        ) : (
+          <ul className="divide-y divide-coffee-100">
+            {bookings.map((b) => (
+              <li key={b.id}>
+                <Link href={`/baybayin/booking/${b.public_token}`} className="flex items-center justify-between gap-3 py-3">
+                  <div>
+                    <p className="font-bold">{b.booking_number}</p>
+                    <p className="text-sm text-coffee-700">
+                      {b.scooter_name} · pickup {b.pickup_at ? formatDateTime(b.pickup_at) : b.start_date}
+                    </p>
+                  </div>
+                  <Badge tone={b.status === "cancelled" ? "red" : b.status === "returned" ? "green" : "amber"}>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <ChangePassword />
       <DeleteAccount />
       <p className="text-center text-sm">
@@ -503,5 +579,33 @@ function DeleteAccount() {
         </div>
       )}
     </section>
+  );
+}
+
+/** After Google sign-in there's no mobile number yet; the café needs one to reach the customer. */
+function MissingPhone({ userId, onSaved }: { userId: string; onSaved: (phone: string) => void }) {
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const p = normalizePhone(phone);
+    if (!p) return setError("Mobile number must look like 09XXXXXXXXX.");
+    setBusy(true);
+    const { error } = await getSupabase().from("users").update({ phone: p }).eq("id", userId);
+    setBusy(false);
+    if (error) return setError(error.message);
+    onSaved(p);
+  };
+  return (
+    <form onSubmit={save} className="space-y-3">
+      <p className="font-semibold">One more thing: your mobile number</p>
+      <p className="text-sm text-coffee-700">We&apos;ll use it to reach you about your order or booking.</p>
+      {error && <Alert>{error}</Alert>}
+      <input aria-label="Mobile number" className="input" type="tel" inputMode="numeric" placeholder="09XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <button className="btn-primary w-full" disabled={busy}>
+        {busy ? <Spinner /> : "Save and continue"}
+      </button>
+    </form>
   );
 }

@@ -45,6 +45,7 @@ export interface StoreSettings {
   staff_header_color: string | null;
   staff_title: string;
   online_payments_enabled: boolean;
+  require_account?: boolean;
 }
 
 export interface Category {

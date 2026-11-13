@@ -8,6 +8,8 @@ const SHOTS = require("path").join(__dirname, "../docs/screenshots/");
 const RECEIPT = require("path").join(__dirname, "fixtures/gcash-receipt.png");
 const log = (...a) => console.log("•", ...a);
 const t0 = Date.now();
+// guest orders here (the sign-in gate has its own test: npm run test:signin)
+require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", "update store_settings set require_account = false"]);
 
 (async () => {
   const browser = await chromium.launch();
