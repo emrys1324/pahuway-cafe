@@ -48,8 +48,15 @@ const PASS = "Kape-sa-umaga-1";
     const g = await (await browser.newContext(devices["iPhone 13"])).newPage();
     await g.goto(BASE + "/");
     await g.getByTestId("hero").waitFor();
-    await g.getByTestId("hero-rent").getByText("Book a scooter").waitFor();
-    assert((await g.getByTestId("welcome-title").textContent()) === "Welcome!" && (await g.getByTestId("hero-order").count()) === 1 && (await g.getByTestId("hero-rent").textContent()) === "Book a scooter", "hero: title and the two buttons (Order food & drinks / Book a scooter)");
+    await g.getByTestId("action-rent").getByText("Book a scooter").waitFor();
+    assert((await g.getByTestId("welcome-title").textContent()) === "Welcome!" && (await g.getByTestId("hero").getByRole("link").count()) === 0, "welcome header: title only, no buttons inside it");
+    const pos = await g.evaluate(() => {
+      const r = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect();
+      return { heroBottom: r("hero").bottom, actions: r("main-actions"), shortcuts: document.querySelector("[data-testid=shortcuts]")?.getBoundingClientRect().top ?? 1e9, vh: innerHeight };
+    });
+    assert(pos.actions.top > pos.heroBottom && pos.actions.top - pos.heroBottom < 40 && pos.actions.bottom < pos.shortcuts && pos.actions.bottom <= pos.vh, "Order food & drinks / Book a scooter cards sit right under the welcome header, above everything else, on the first screen of a phone");
+    const [o, r] = [await g.getByTestId("action-order").boundingBox(), await g.getByTestId("action-rent").boundingBox()];
+    assert(Math.abs(o.y - r.y) < 2 && Math.abs(o.width - r.width) < 2, "the two cards sit side by side, same size");
     const firstPhoto = sql("select photo_url from menu_items where is_active and not is_sold_out and photo_url is not null order by sort_order, name limit 1");
     await g.waitForFunction((u) => document.querySelector("[data-testid=hero-photo]")?.getAttribute("src") === u, firstPhoto, { timeout: 8000 }).catch(() => null);
     assert((await g.getByTestId("hero-photo").getAttribute("src")) === firstPhoto, "without a chosen photo the hero uses the first menu photo");
@@ -60,9 +67,12 @@ const PASS = "Kape-sa-umaga-1";
     assert((await g.getByTestId("info").innerText()).includes("Call 0917 000 0000") && (await g.getByTestId("contact-messenger").getAttribute("href")) === "https://m.me/example", "contact: call and Messenger");
     assert((await g.getByTestId("location-text").count()) === 0, "Find us is hidden until a location is set");
     assert((await g.getByTestId("how-it-works").locator("li").count()) === 6, "how it works: 3 steps for ordering, 3 for renting");
-    await g.getByTestId("choose-cafe").click();
+    await g.getByTestId("action-order").click();
     await g.waitForURL(BASE + "/menu");
-    assert(true, "café card opens the menu");
+    await g.goBack();
+    await g.getByTestId("action-rent").click();
+    await g.waitForURL(BASE + "/baybayin");
+    assert(true, "Order food & drinks opens the menu; Book a scooter opens Baybayin");
 
     // ---- admin sets photo-free settings: location + map link (bad link rejected)
     const admin = await (await browser.newContext(devices["iPad (gen 7) landscape"])).newPage();
