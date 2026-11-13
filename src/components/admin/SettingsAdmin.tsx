@@ -35,8 +35,6 @@ export function SettingsAdmin() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
-    if (s.location_map_url?.trim() && !/^https:\/\//.test(s.location_map_url.trim()))
-      return setMsg({ tone: "red", text: "Map link must start with https:// — copy it from Google Maps → Share." });
     setBusy(true);
     const { error } = await getSupabase()
       .from("store_settings")
@@ -82,8 +80,6 @@ export function SettingsAdmin() {
         online_payments_enabled: !!s.online_payments_enabled,
         require_account: s.require_account !== false,
         hero_url: s.hero_url || null,
-        location_text: clean(s.location_text),
-        location_map_url: s.location_map_url?.trim() ? s.location_map_url.trim() : null,
       })
       .eq("id", 1);
     setBusy(false);
@@ -388,7 +384,7 @@ function BrandingSection({
               <p className="hint">Leave any field empty to use the text shown in grey.</p>
             </div>
             <div className="space-y-3 border-t border-coffee-100 pt-5" data-testid="landing-settings">
-              <p className="font-bold">Welcome page photo &amp; location</p>
+              <p className="font-bold">Welcome page photo</p>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-coffee-100 sm:w-48">
                   {s.hero_url ? (
@@ -411,8 +407,6 @@ function BrandingSection({
                   <p className="hint">Big photo at the top of the welcome page. Landscape, at least 1600 px wide. Empty = the first menu photo.</p>
                 </div>
               </div>
-              <TextInput id="location-text" label="Where to find us" placeholder="e.g. Poblacion, San Agustin, Romblon — beside the town plaza" maxLength={160} hint="Shown on the welcome page. Empty = hidden." {...text("location_text")} />
-              <TextInput id="location-map-url" label="Map link" placeholder="https://maps.app.goo.gl/…" maxLength={300} hint="Optional: a Google Maps share link (starts with https://)." {...text("location_map_url")} />
             </div>
             <SiteIconField icons={s.site_icons ?? null} uploading={uploading} onUpload={uploadIcon} onClear={() => set("site_icons", null)} />
           </>
