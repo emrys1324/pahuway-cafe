@@ -110,7 +110,7 @@ export function MenuScreen() {
       </main>
 
       {count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-[var(--nav-h,0px)] z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] [.has-bottom-nav_&]:pb-3">
           <button onClick={() => setCartOpen(true)} className="btn-primary mx-auto flex w-full max-w-lg justify-between rounded-2xl px-5 py-4 text-lg shadow-xl">
             <span className="flex items-center gap-2">
               <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-cream px-2 text-sm font-bold text-coffee-800">{count}</span>

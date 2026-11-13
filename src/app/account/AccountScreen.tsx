@@ -6,19 +6,17 @@ import { useAddressSync } from "@/components/map/useAddressSync";
 import { toLatLng } from "@/lib/maps";
 import { useCallback, useEffect, useState } from "react";
 import { StoreHeader } from "@/components/customer/Header";
-import { Alert, Badge, PageLoader, Spinner } from "@/components/ui";
+import { Alert, PageLoader, Spinner } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { signOutAndGo } from "@/lib/native";
-import { formatPeso, normalizePhone, ORDER_TYPE_LABEL, STATUS_LABEL } from "@/lib/format";
-import { formatDateTime } from "@/lib/hours";
+import { normalizePhone } from "@/lib/format";
 import { useStoreSettings } from "@/lib/store-settings";
 import { accountTexts } from "@/lib/brands";
 import { isPhoneLoginEmail, phoneLoginEmail } from "@/lib/phone-login";
 import { safeNext } from "@/lib/google-signin";
 import { GoogleButton } from "@/components/customer/GoogleButton";
 import { useSearchParams } from "next/navigation";
-import type { Order, Zone } from "@/lib/types";
-import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/rentals";
+import type { Zone } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 
 interface Profile {
@@ -305,46 +303,23 @@ function ChangePassword() {
   );
 }
 
-interface MyBooking {
-  id: string;
-  booking_number: string;
-  public_token: string;
-  pickup_at: string | null;
-  start_date: string;
-  scooter_name: string;
-  status: BookingStatus;
-  return_at: string | null;
-  end_date: string;
-  total: number;
-}
 
 function Profile({ user, next }: { user: User; next: string | null }) {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [bookings, setBookings] = useState<MyBooking[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ tone: "red" | "green"; text: string } | null>(null);
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
-    const [p, z, o, b] = await Promise.all([
+    const [p, z] = await Promise.all([
       supabase.from("users").select("role, full_name, phone, zone_id, street, landmark, saved_lat, saved_lng").eq("id", user.id).single(),
       supabase.from("delivery_zones").select("*").eq("is_active", true).order("sort_order"),
-      supabase.from("orders").select("*").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(20),
-      supabase
-        .from("rental_bookings")
-        .select("id, booking_number, public_token, pickup_at, start_date, return_at, end_date, total, scooter_name, status")
-        .eq("customer_user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20),
     ]);
-    setBookings((b.data as MyBooking[]) ?? []);
     // signed in to continue an order/booking and nothing is missing → go straight back
     if (next && normalizePhone((p.data as Profile | null)?.phone ?? "")) window.location.replace(next);
     setProfile((p.data as Profile) ?? { role: "customer", full_name: "", phone: "", zone_id: null, street: "", landmark: "", saved_lat: null, saved_lng: null });
     setZones((z.data as Zone[]) ?? []);
-    setOrders((o.data as Order[]) ?? []);
   }, [user.id, next]);
 
   useEffect(() => {
@@ -484,7 +459,6 @@ function Profile({ user, next }: { user: User; next: string | null }) {
         </div>
       </section>
 
-      <History orders={orders} bookings={bookings} />
       <DeleteAccount />
       <p className="text-center text-sm">
         <Link href="/privacy" className="text-coffee-700 underline">
@@ -574,107 +548,3 @@ function MissingPhone({ userId, onSaved }: { userId: string; onSaved: (phone: st
   );
 }
 
-/** Bottom of the profile: café orders and scooter rentals, as two tabs. */
-function History({ orders, bookings }: { orders: Order[]; bookings: MyBooking[] }) {
-  const [tab, setTab] = useState<"orders" | "rentals">("orders");
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("account-history-tab") === "rentals") setTab("rentals");
-    } catch {}
-  }, []);
-  const pick = (t: "orders" | "rentals") => {
-    setTab(t);
-    try {
-      localStorage.setItem("account-history-tab", t);
-    } catch {}
-  };
-  const tabs = [
-    { id: "orders" as const, label: "Orders", count: orders.length },
-    { id: "rentals" as const, label: "Scooter rentals", count: bookings.length },
-  ];
-  return (
-    <section className="card p-5" data-testid="history">
-      <h2 className="section-title mb-3">My history</h2>
-      <div role="tablist" aria-label="My history" className="grid grid-cols-2 gap-2 rounded-2xl bg-coffee-100 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            id={`tab-${t.id}`}
-            aria-selected={tab === t.id}
-            aria-controls={`panel-${t.id}`}
-            onClick={() => pick(t.id)}
-            className={`min-h-[44px] rounded-xl font-semibold ${tab === t.id ? "bg-white shadow" : "text-coffee-700"}`}
-          >
-            {t.label} <span className="tabular-nums text-coffee-600">({t.count})</span>
-          </button>
-        ))}
-      </div>
-
-      {tab === "orders" ? (
-        <div role="tabpanel" id="panel-orders" aria-labelledby="tab-orders" className="mt-3" data-testid="history-orders">
-          {orders.length === 0 ? (
-            <p className="py-3 text-coffee-700">
-              No orders yet.{" "}
-              <Link href="/menu" className="font-semibold underline">
-                Browse the menu
-              </Link>
-            </p>
-          ) : (
-            <ul className="divide-y divide-coffee-100">
-              {orders.map((o) => (
-                <li key={o.id}>
-                  <Link href={`/order/${o.public_token}`} className="flex items-center justify-between gap-3 py-3">
-                    <div>
-                      <p className="font-bold">{o.order_number}</p>
-                      <p className="text-sm text-coffee-700">
-                        {formatDateTime(o.created_at)} · {ORDER_TYPE_LABEL[o.order_type]}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold tabular-nums">{formatPeso(o.total)}</p>
-                      <Badge tone={o.status === "cancelled" ? "red" : o.status === "completed" ? "green" : "amber"}>{STATUS_LABEL[o.status]}</Badge>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <div role="tabpanel" id="panel-rentals" aria-labelledby="tab-rentals" className="mt-3" data-testid="history-rentals">
-          {bookings.length === 0 ? (
-            <p className="py-3 text-coffee-700">
-              No scooter rentals yet.{" "}
-              <Link href="/baybayin" className="font-semibold underline">
-                Book a scooter
-              </Link>
-            </p>
-          ) : (
-            <ul className="divide-y divide-coffee-100">
-              {bookings.map((b) => (
-                <li key={b.id}>
-                  <Link href={`/baybayin/booking/${b.public_token}`} className="flex items-center justify-between gap-3 py-3">
-                    <div>
-                      <p className="font-bold">
-                        {b.booking_number} · {b.scooter_name}
-                      </p>
-                      <p className="text-sm text-coffee-700">
-                        {b.pickup_at ? formatDateTime(b.pickup_at) : b.start_date} → {b.return_at ? formatDateTime(b.return_at) : b.end_date}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold tabular-nums">{formatPeso(b.total)}</p>
-                      <Badge tone={b.status === "cancelled" ? "red" : b.status === "returned" ? "green" : "amber"}>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</Badge>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
