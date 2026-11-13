@@ -281,8 +281,8 @@ function ChangePassword() {
     setMsg({ tone: "green", text: "Password changed." });
   };
   return (
-    <form onSubmit={save} className="card space-y-3 p-5" data-testid="change-password">
-      <h2 className="section-title">Change password</h2>
+    <form onSubmit={save} className="space-y-3" data-testid="change-password">
+      <h3 className="font-semibold">Change password</h3>
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -386,7 +386,6 @@ function Profile({ user, next }: { user: User; next: string | null }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Hi, {profile.full_name?.split(" ")[0] || "there"}!</h1>
-          <p className="text-sm text-coffee-700">{isPhoneLoginEmail(user.email) ? `Signs in with ${user.email!.split("@")[0]}` : user.email}</p>
         </div>
         <button
           className="btn-secondary btn-sm"
@@ -428,55 +427,65 @@ function Profile({ user, next }: { user: User; next: string | null }) {
         </Link>
       )}
 
-      <form onSubmit={save} className="card space-y-4 p-5">
-        <h2 className="section-title">Saved details</h2>
-        {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+      <section className="card space-y-5 p-5" data-testid="my-info">
         <div>
-          <label className="label" htmlFor="p-name">
-            Name
-          </label>
-          <input id="p-name" className="input" value={profile.full_name ?? ""} onChange={set("full_name")} />
+          <h2 className="section-title">My information</h2>
+          <p className="text-sm text-coffee-700" data-testid="sign-in-with">
+            {isPhoneLoginEmail(user.email) ? `Signs in with ${user.email!.split("@")[0]}` : user.email}
+            {(user.app_metadata?.providers as string[] | undefined)?.includes("google") && " · Google sign-in"}
+          </p>
         </div>
-        <div>
-          <label className="label" htmlFor="p-phone">
-            Mobile number
-          </label>
-          <input id="p-phone" className="input" type="tel" inputMode="numeric" placeholder="09XXXXXXXXX" value={profile.phone ?? ""} onChange={set("phone")} />
+        <form onSubmit={save} className="space-y-4">
+          {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+          <div>
+            <label className="label" htmlFor="p-name">
+              Name
+            </label>
+            <input id="p-name" className="input" value={profile.full_name ?? ""} onChange={set("full_name")} />
+          </div>
+          <div>
+            <label className="label" htmlFor="p-phone">
+              Mobile number
+            </label>
+            <input id="p-phone" className="input" type="tel" inputMode="numeric" placeholder="09XXXXXXXXX" value={profile.phone ?? ""} onChange={set("phone")} />
+          </div>
+          <div>
+            <label className="label" htmlFor="p-zone">
+              Barangay
+            </label>
+            <select id="p-zone" className="input" value={profile.zone_id ?? ""} onChange={set("zone_id")}>
+              <option value="">—</option>
+              {zones.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="p-street">
+              House no. / Street / Purok
+            </label>
+            <StreetAutocomplete id="p-street" value={profile.street ?? ""} onChange={(v) => put({ street: v })} onPick={sync.onSuggestion} enabled={sync.enabled} />
+          </div>
+          <div>
+            <label className="label" htmlFor="p-landmark">
+              Landmark
+            </label>
+            <input id="p-landmark" className="input" value={profile.landmark ?? ""} onChange={set("landmark")} />
+          </div>
+          <MapPicker value={toLatLng(profile.saved_lat, profile.saved_lng)} onChange={sync.onPinChange} center={sync.center} note={sync.note} />
+          <button className="btn-primary w-full" disabled={saving}>
+            {saving ? <Spinner /> : "Save"}
+          </button>
+        </form>
+        <div className="border-t border-coffee-100 pt-5">
+          <ChangePassword />
         </div>
-        <div>
-          <label className="label" htmlFor="p-zone">
-            Barangay
-          </label>
-          <select id="p-zone" className="input" value={profile.zone_id ?? ""} onChange={set("zone_id")}>
-            <option value="">—</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="p-street">
-            House no. / Street / Purok
-          </label>
-          <StreetAutocomplete id="p-street" value={profile.street ?? ""} onChange={(v) => put({ street: v })} onPick={sync.onSuggestion} enabled={sync.enabled} />
-        </div>
-        <div>
-          <label className="label" htmlFor="p-landmark">
-            Landmark
-          </label>
-          <input id="p-landmark" className="input" value={profile.landmark ?? ""} onChange={set("landmark")} />
-        </div>
-        <MapPicker value={toLatLng(profile.saved_lat, profile.saved_lng)} onChange={sync.onPinChange} center={sync.center} note={sync.note} />
-        <button className="btn-primary w-full" disabled={saving}>
-          {saving ? <Spinner /> : "Save"}
-        </button>
-      </form>
+      </section>
 
-      <ChangePassword />
-      <DeleteAccount />
       <History orders={orders} bookings={bookings} />
+      <DeleteAccount />
       <p className="text-center text-sm">
         <Link href="/privacy" className="text-coffee-700 underline">
           Privacy policy
@@ -506,7 +515,7 @@ function DeleteAccount() {
   };
 
   return (
-    <section className="card p-5">
+    <section className="card p-5" data-testid="delete-account">
       {!open ? (
         <button className="btn-ghost btn-sm w-full text-red-700" onClick={() => setOpen(true)}>
           Delete my account

@@ -85,8 +85,17 @@ async function cartAndCheckout(page) {
       from scooters s, auth.users u where s.is_active and u.email = '${PHONE}@phone.invalid' limit 1 returning booking_number`).split("\n")[0];
     await guest.reload();
     await hist.waitFor();
-    const boxes = await hist.boundingBox(), page = await guest.evaluate(() => document.body.scrollHeight);
-    assert(page - (boxes.y + boxes.height) < 200, "My history sits at the bottom of the account page");
+    const order3 = await guest.evaluate(() => {
+      const y = (sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+      return [y("[data-testid=my-info]"), y("[data-testid=history]"), y("[data-testid=delete-account]")];
+    });
+    assert(order3[0] >= 0 && order3[0] < order3[1] && order3[1] < order3[2], "page order: My information card → My history → Delete my account at the bottom");
+    const info = guest.getByTestId("my-info");
+    assert(
+      (await info.locator("#p-name").count()) === 1 && (await info.locator("#p-phone").count()) === 1 && (await info.locator("#p-zone").count()) === 1 &&
+        (await info.getByTestId("change-password").count()) === 1 && (await info.getByText(`Signs in with ${PHONE}`).count()) === 1,
+      "all user information (sign-in, name, mobile, address, password) is in one card"
+    );
     assert((await hist.getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Scooter rentals (1)", "two tabs: Orders and Scooter rentals, with counts");
     assert((await hist.getByTestId("history-orders").innerText()).includes(order), "Orders tab lists the customer's café order");
     await hist.getByRole("tab", { name: /Scooter rentals/ }).click();
