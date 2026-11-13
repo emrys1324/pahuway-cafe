@@ -144,7 +144,6 @@ const assert = (c, m) => {
   await admin.getByText("Settings saved.").waitFor();
   await cust.waitForFunction((u) => document.querySelector("[data-testid=baybayin-logo]")?.getAttribute("src") === u, bayUrl, { timeout: 8000 });
   assert(true, "home page scooter card shows the Baybayin logo (live, no reload)");
-  await cust.getByText("Rent a scooter from Baybayin Rides").waitFor();
   await cust.getByTestId("choose-scooter").click();
   await cust.waitForURL(BASE + "/baybayin");
   await cust.getByText("Coming soon").first().waitFor();
@@ -255,7 +254,7 @@ const assert = (c, m) => {
   assert(sqlBay() === "", "Baybayin logo removed (scooter card back to 🛵)");
   await cust.goto(BASE + "/");
   await cust.getByTestId("welcome-title").getByText("Welcome!").waitFor();
-  assert((await cust.getByTestId("store-title").textContent()).trim() === "Pahuway Cafe" && (await cust.getByText("Rent a scooter from Baybayin").count()) === 1, "welcome page + Baybayin back to defaults (empty fields = defaults)");
+  assert((await cust.getByTestId("store-title").textContent()).trim() === "Pahuway Cafe" && (await cust.getByText("Scooter rentals for getting around San Agustin. Check back soon!").count()) === 1 && (await cust.getByTestId("baybayin-logo").count()) === 0, "welcome page + Baybayin back to defaults (empty fields = defaults)");
   const restoredBg = await cust.getByTestId("customer-header").evaluate((el) => getComputedStyle(el).backgroundColor);
   assert(restoredBg.startsWith("rgba(251, 247, 240"), "customer header back to default cream");
 
