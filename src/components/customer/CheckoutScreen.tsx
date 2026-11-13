@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { SignInGate } from "./SignInGate";
 import { StoreHeader } from "./Header";
 import { CartLines } from "./CartDrawer";
 import { useMenu } from "./useMenu";
@@ -67,6 +68,7 @@ export function CheckoutScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
 
   // zones + prefill (signed-in profile first, else last guest details on this phone)
   useEffect(() => {
@@ -90,6 +92,7 @@ export function CheckoutScreen() {
         }
       } catch {}
       const { data: auth } = await supabase.auth.getUser();
+      setSignedIn(!!auth.user);
       if (!auth.user) return;
       const { data: p } = await supabase.from("users").select("full_name, phone, zone_id, street, landmark, saved_lat, saved_lng").eq("id", auth.user.id).single();
       if (p) {
@@ -145,6 +148,19 @@ export function CheckoutScreen() {
         </div>
       </div>
     );
+  }
+
+  if (settings.require_account !== false && !done) {
+    if (signedIn === undefined) return <PageLoader />;
+    if (!signedIn)
+      return (
+        <div className="min-h-screen">
+          <StoreHeader settings={settings} open={open} back="/menu" />
+          <main className="mx-auto max-w-lg px-4 py-6">
+            <SignInGate next="/checkout" what="order" />
+          </main>
+        </div>
+      );
   }
 
   // Errors are computed live once the customer has tried to submit, so they clear as fields are fixed.

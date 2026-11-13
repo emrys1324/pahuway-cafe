@@ -17,6 +17,7 @@ const assert = (c, m) => {
 };
 
 (async () => {
+  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
   // start clean: remove leftover item photos through the Storage API (direct SQL deletes are blocked)
   const storage = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }).storage.from("menu-photos");
   const { data: left } = await storage.list("items", { limit: 1000 });

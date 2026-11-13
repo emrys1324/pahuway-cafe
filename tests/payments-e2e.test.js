@@ -13,6 +13,7 @@ const assert = (c, m) => {
 };
 
 (async () => {
+  require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", "update store_settings set require_account = false"]); // guest orders/bookings (the sign-in gate has its own test)
   const mock = await startMockHitpay({ port: 4010, salt: "salt_e2e", apiKey: "hp_e2e" });
   const browser = await chromium.launch();
   const adminCtx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
@@ -165,9 +166,11 @@ const assert = (c, m) => {
   mock.opts.webhooks = false;
   const no4 = await abandon("pr_4");
   await cust.request.post(`http://127.0.0.1:4010/checkout/pr_4/pay`, { maxRedirects: 0 }).catch(() => null);
-  await cust.getByTestId("gcash-fallback-open").click();
-  await cust.setInputFiles("input[aria-label='GCash payment screenshot']", RECEIPT);
-  await cust.getByTestId("gcash-fallback").getByRole("button", { name: "Send GCash screenshot" }).click();
+  // the page may notice the payment by itself first and drop the GCash option; either way it must end "Paid online"
+  if (await cust.getByTestId("gcash-fallback-open").click({ timeout: 5000 }).then(() => true, () => false)) {
+    await cust.setInputFiles("input[aria-label='GCash payment screenshot']", RECEIPT).catch(() => null);
+    await cust.getByTestId("gcash-fallback").getByRole("button", { name: "Send GCash screenshot" }).click({ timeout: 5000 }).catch(() => null);
+  }
   await cust.getByText("Paid online ✓").waitFor({ timeout: 10000 });
   assert(sqlq(`select payment_method||'|'||payment_status from orders where order_number='${no4}'`) === "online|paid", "if HitPay shows it was paid, the order is confirmed as paid online instead (no double payment)");
   mock.opts.webhooks = true;

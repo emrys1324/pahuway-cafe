@@ -1,5 +1,6 @@
 -- Scenario tests for scooter rentals (0011 + 0012 + 0014): GCash receipt deposit, terms, pickup only, times, calendar.
 \set ON_ERROR_STOP 1
+update store_settings set require_account = false;  -- guest scenarios; the sign-in rule is tested on its own
 create or replace function pg_temp.expect_error(sql text, needle text) returns void language plpgsql as $$
 begin
   begin execute sql;
@@ -196,5 +197,17 @@ select pg_temp.check((select count(*) from busy_scooters(((select t0 from d) + i
 select pg_temp.expect_error($q$select book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000002', 701, 725))$q$, 'UNAVAILABLE');
 select pg_temp.check((book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000002', 725, 749))->>'days')::int = 1, 'units: once the first is back (+30 min), its unit is free again even though the second is still out');
 reset role;
+
+-- accounts required: guests can't book; a signed-in customer's booking is linked to them and visible to them
+update store_settings set require_account = true;
+set role anon;
+select pg_temp.expect_error($q$select book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000001', 800, 824))$q$, 'SIGN_IN');
+reset role;
+insert into auth.users (id, email) values ('c0000000-0000-0000-0000-000000000001', 'cust@t.test');
+set role authenticated; select pg_temp.as_user('c0000000-0000-0000-0000-000000000001');
+create temp table own on commit preserve rows as select book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000001', 800, 824)) r;
+select pg_temp.check((select count(*) from rental_bookings) = 1 and (select customer_user_id from rental_bookings) = 'c0000000-0000-0000-0000-000000000001', 'signed-in customer books; the booking is linked to their account and they see only their own');
+reset role; select pg_temp.as_user('');
+update store_settings set require_account = false;
 
 select 'ALL RENTAL SCENARIOS PASSED';

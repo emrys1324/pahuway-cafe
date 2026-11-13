@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Badge, PageLoader, Spinner } from "@/components/ui";
 import { ScooterPhoto } from "./ScooterPhoto";
+import { SignInGate } from "./SignInGate";
+import { isPhoneLoginEmail } from "@/lib/phone-login";
 import { AvailabilityCalendar } from "./AvailabilityCalendar";
 import { useStoreSettings } from "@/lib/store-settings";
 import { getSupabase } from "@/lib/supabase/client";
@@ -46,7 +48,24 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<{ token: string; number: string } | null>(null);
 
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
+  const needSignIn = settings?.require_account !== false && signedIn === false;
+
   useEffect(() => setRecent(getRecentBooking()), []);
+  // signed-in customers: fill in their details from the account
+  useEffect(() => {
+    const supabase = getSupabase();
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      setSignedIn(!!auth.user);
+      if (!auth.user) return;
+      const { data: p } = await supabase.from("users").select("full_name, phone").eq("id", auth.user.id).single();
+      if (p?.full_name) setName((v) => v || p.full_name);
+      if (p?.phone) setPhone((v) => v || p.phone);
+      const em = auth.user.email;
+      if (em && !isPhoneLoginEmail(em)) setEmail((v) => v || em);
+    })();
+  }, []);
   useEffect(() => {
     getSupabase()
       .from("scooters")
@@ -188,7 +207,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
     }
   };
 
-  if (!scooters) return <PageLoader />;
+  if (!scooters || (settings?.require_account !== false && signedIn === undefined)) return <PageLoader />;
   return (
     <form onSubmit={submit} noValidate className="space-y-4 pb-32">
       {recent && (
@@ -307,6 +326,10 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
         {show("scooter")}
       </section>
 
+      {needSignIn ? (
+        <SignInGate next="/baybayin" what="book" />
+      ) : (
+        <>
       {/* 3 · Details */}
       <section className="card space-y-4 p-5">
         <h2 className="section-title">Your details</h2>
@@ -525,6 +548,8 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
           </button>
         </div>
       </div>
+        </>
+      )}
         </>
       )}
     </form>
