@@ -28,7 +28,8 @@
     "test:account": "node tests/account.test.js",
     "test:pwa": "node tests/pwa.test.js",
     "test:rider-login": "node tests/rider-login.test.js",
-    "test:signin": "node tests/signin-gate.test.js"
+    "test:signin": "node tests/signin-gate.test.js",
+    "test:landing": "node tests/landing.test.js"
   },
   "dependencies": {
     "@capacitor/android": "8.6.0",
