@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { StoreHeader } from "./Header";
 import { HomeShortcuts } from "./HomeShortcuts";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -10,11 +10,11 @@ import { formatClock } from "@/lib/hours";
 import { useStoreSettings } from "@/lib/store-settings";
 import { brandOf, welcomeTexts } from "@/lib/brands";
 import { getSupabase } from "@/lib/supabase/client";
-import { bookingsOpen, rentalHours, slotLabel, useRentalSettings } from "@/lib/rentals";
+import { bookingsOpen, useRentalSettings } from "@/lib/rentals";
 
 type Thumb = { id: string; name: string; photo_url: string };
 
-/** Home (landing page): hero, your shortcuts, the two services with photos, then hours / location / contact / how it works. */
+/** Home (landing page): welcome header, the two main cards, your shortcuts, then location / contact. */
 export function HomeChooser() {
   const { settings, open } = useStoreSettings();
   const { count } = useCart();
@@ -42,7 +42,6 @@ export function HomeChooser() {
 
   const hero = settings?.hero_url || food[0]?.photo_url || null;
   const rentOpen = !!rs && bookingsOpen(rs);
-  const rh = rentalHours(rs);
 
   const cafeStatus = !settings
     ? null
@@ -55,13 +54,6 @@ export function HomeChooser() {
   const msgr = rs?.messenger_url || null;
   const phone = settings?.contact_phone || null;
   const email = settings?.contact_email || null;
-  const steps = useMemo(
-    () => ({
-      cafe: ["Pick drinks and food from the menu", "Choose pickup, dine-in or delivery and pay cash or GCash", "Follow your order live until it's ready"],
-      bay: ["Pick your dates and a scooter on the calendar", "Upload your driver's license and send the deposit", "Pick up the scooter — show your booking page"],
-    }),
-    [],
-  );
 
   return (
     <div className="min-h-screen pb-10">
@@ -148,26 +140,8 @@ export function HomeChooser() {
 
         <InstallPrompt />
 
-        {/* Hours, location, contact */}
-        <section data-testid="info" className={`card grid gap-5 p-5 ${settings?.location_text ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <div>
-            <h2 className="section-title mb-1">Opening hours</h2>
-            {settings && (
-              <p className="text-sm text-coffee-800">
-                <span className="font-semibold">{cafe.name}</span>
-                <br />
-                {formatClock(settings.open_time)} – {formatClock(settings.close_time)}
-                {!settings.is_open && <span className="block text-coffee-600">Closed for now</span>}
-              </p>
-            )}
-            {rs && (
-              <p className="mt-2 text-sm text-coffee-800">
-                <span className="font-semibold">{bay.name} pickup &amp; return</span>
-                <br />
-                {slotLabel(rh.open)} – {slotLabel(rh.close)}
-              </p>
-            )}
-          </div>
+        {/* Location and contact */}
+        <section data-testid="info" className={`card grid gap-5 p-5 ${settings?.location_text ? "sm:grid-cols-2" : ""}`}>
           {settings?.location_text && (
             <div>
               <h2 className="section-title mb-1">Find us</h2>
@@ -207,33 +181,6 @@ export function HomeChooser() {
               )}
               {!phone && !msgr && !email && <li className="text-coffee-700">Ask us at the café.</li>}
             </ul>
-          </div>
-        </section>
-
-        {/* How it works */}
-        <section data-testid="how-it-works" className="card p-5">
-          <h2 className="section-title mb-3">How it works</h2>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {(
-              [
-                [`Ordering from ${cafe.name}`, steps.cafe],
-                [`Renting from ${bay.name}`, steps.bay],
-              ] as const
-            ).map(([title, list]) => (
-              <div key={title}>
-                <p className="mb-2 font-semibold">{title}</p>
-                <ol className="space-y-2">
-                  {list.map((s, i) => (
-                    <li key={s} className="flex gap-3 text-sm text-coffee-800">
-                      <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-coffee-100 text-xs font-bold text-coffee-800">
-                        {i + 1}
-                      </span>
-                      {s}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ))}
           </div>
         </section>
       </main>
