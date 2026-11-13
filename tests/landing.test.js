@@ -1,5 +1,5 @@
 // Landing page (app.padaya.online/): hero, shortcuts (guest + signed in, Order again), service cards with photos,
-// hours / location / contact / how it works, and the Welcome-page settings that feed it.
+// no extra info cards, and the Welcome-page photo setting.
 // Needs local Supabase (migrations + seed) + seed:users + app on :3000.  Run: npm run test:landing
 const { chromium, devices } = require("playwright");
 const { execFileSync } = require("child_process");
@@ -65,10 +65,7 @@ const PASS = "Kape-sa-umaga-1";
     assert(true, "guests get a 'Sign in to track your orders…' shortcut");
     assert((await g.getByTestId("cafe-photos").count()) === 0 && (await g.getByTestId("scooter-photos").count()) === 0 && (await g.locator("main a[href='/menu']").count()) === 1 && (await g.locator("main a[href='/baybayin']").count()) === 1, "no photo cards below: the top two cards are the only way to the menu and Baybayin");
     assert((await g.getByTestId("choose-cafe").innerText()).includes("Open now · until"), "café card shows open now / until");
-    assert((await g.getByTestId("info").innerText()).includes("Call 0917 000 0000") && (await g.getByTestId("contact-messenger").getAttribute("href")) === "https://m.me/example", "contact: call and Messenger");
-    assert((await g.getByTestId("location-text").count()) === 0, "Find us is hidden until a location is set");
-    const infoText = await g.getByTestId("info").innerText();
-    assert((await g.getByTestId("how-it-works").count()) === 0 && !infoText.includes("Opening hours"), "no Opening hours or How it works on the landing page");
+    assert((await g.locator("[data-testid=info], [data-testid=how-it-works]").count()) === 0 && !(await g.locator("main").innerText()).match(/Opening hours|How it works|Find us|Contact us/), "no Opening hours, How it works, Find us or Contact us on the landing page");
     await g.getByTestId("choose-cafe").click();
     await g.waitForURL(BASE + "/menu");
     await g.goBack();
@@ -76,7 +73,7 @@ const PASS = "Kape-sa-umaga-1";
     await g.waitForURL(BASE + "/baybayin");
     assert(true, "Order food & drinks opens the menu; Book a scooter opens Baybayin");
 
-    // ---- admin sets photo-free settings: location + map link (bad link rejected)
+    // ---- Settings: welcome photo only (location fields removed)
     const admin = await (await browser.newContext(devices["iPad (gen 7) landscape"])).newPage();
     await admin.goto(BASE + "/login");
     await admin.fill("#email", "admin@pahuway.cafe");
@@ -85,21 +82,11 @@ const PASS = "Kape-sa-umaga-1";
     await admin.waitForURL(BASE + "/admin");
     await admin.goto(BASE + "/admin/settings");
     await admin.getByTestId("landing-settings").waitFor();
-    await admin.locator("#location-text").fill("Poblacion, beside the town plaza");
-    await admin.locator("#location-map-url").fill("maps.google.com/xyz");
-    await admin.getByRole("button", { name: "Save settings" }).click();
-    await admin.getByText("Map link must start with https://").waitFor();
-    assert(true, "a map link without https:// is refused with a clear message");
-    await admin.locator("#location-map-url").fill("https://maps.app.goo.gl/example");
-    await admin.getByRole("button", { name: "Save settings" }).click();
-    await admin.getByText("Settings saved.").waitFor();
-    await g.goto(BASE + "/");
-    await g.getByTestId("location-text").waitFor();
-    assert((await g.getByTestId("location-text").textContent()) === "Poblacion, beside the town plaza" && (await g.getByTestId("location-map").getAttribute("href")) === "https://maps.app.goo.gl/example", "location and map link from Settings appear under Find us");
+    assert((await admin.locator("#location-text").count()) === 0 && (await admin.locator("input[aria-label='Upload welcome page photo']").count()) === 1, "Settings → Welcome page has the photo upload and no location fields");
 
     // ---- hero photo from Settings
     sql("update store_settings set hero_url = '/menu/latte.svg'");
-    await g.reload();
+    await g.goto(BASE + "/");
     await g.waitForFunction(() => document.querySelector("[data-testid=hero-photo]")?.getAttribute("src") === "/menu/latte.svg");
     assert(true, "a chosen Welcome page photo replaces the menu photo in the hero");
     sql("update store_settings set hero_url = null");

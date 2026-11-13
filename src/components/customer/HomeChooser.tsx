@@ -14,7 +14,7 @@ import { bookingsOpen, useRentalSettings } from "@/lib/rentals";
 
 type Thumb = { id: string; name: string; photo_url: string };
 
-/** Home (landing page): welcome header, the two main cards, your shortcuts, then location / contact. */
+/** Home (landing page): welcome header, the two main cards, your shortcuts, no extra info cards. */
 export function HomeChooser() {
   const { settings, open } = useStoreSettings();
   const { count } = useCart();
@@ -51,9 +51,6 @@ export function HomeChooser() {
         ? { tone: "text-coffee-700", text: `Closed now · opens ${formatClock(settings.open_time)}` }
         : { tone: "text-coffee-700", text: "Closed for now" };
 
-  const msgr = rs?.messenger_url || null;
-  const phone = settings?.contact_phone || null;
-  const email = settings?.contact_email || null;
 
   return (
     <div className="min-h-screen pb-10">
@@ -139,50 +136,6 @@ export function HomeChooser() {
         <HomeShortcuts />
 
         <InstallPrompt />
-
-        {/* Location and contact */}
-        <section data-testid="info" className={`card grid gap-5 p-5 ${settings?.location_text ? "sm:grid-cols-2" : ""}`}>
-          {settings?.location_text && (
-            <div>
-              <h2 className="section-title mb-1">Find us</h2>
-              <p className="text-sm text-coffee-800" data-testid="location-text">
-                {settings.location_text}
-              </p>
-              {settings.location_map_url && (
-                <a href={settings.location_map_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-semibold underline" data-testid="location-map">
-                  Open in Maps ↗
-                </a>
-              )}
-            </div>
-          )}
-          <div>
-            <h2 className="section-title mb-1">Contact us</h2>
-            <ul className="space-y-1 text-sm">
-              {phone && (
-                <li>
-                  <a href={`tel:${phone.replace(/\s+/g, "")}`} className="font-semibold underline" data-testid="contact-call">
-                    Call {phone}
-                  </a>
-                </li>
-              )}
-              {msgr && (
-                <li>
-                  <a href={msgr} target="_blank" rel="noopener noreferrer" className="font-semibold underline" data-testid="contact-messenger">
-                    Message us on Messenger ↗
-                  </a>
-                </li>
-              )}
-              {email && (
-                <li>
-                  <a href={`mailto:${email}`} className="font-semibold underline">
-                    {email}
-                  </a>
-                </li>
-              )}
-              {!phone && !msgr && !email && <li className="text-coffee-700">Ask us at the café.</li>}
-            </ul>
-          </div>
-        </section>
       </main>
     </div>
   );
