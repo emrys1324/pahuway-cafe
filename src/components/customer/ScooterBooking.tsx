@@ -541,7 +541,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
       </section>
 
       {error && <Alert>{error}</Alert>}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-coffee-100 bg-cream/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-[var(--nav-h,0px)] z-20 border-t border-coffee-100 bg-cream/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur [.has-bottom-nav_&]:pb-3">
         <div className="mx-auto max-w-lg">
           <button className="btn-primary w-full" disabled={busy}>
             {busy ? <Spinner /> : agreed && deposit ? (payOnline ? `Pay ${formatPeso(payNow)} online` : `Book & send ${formatPeso(payNow)}`) : `Book a scooter from ${brandName}`}

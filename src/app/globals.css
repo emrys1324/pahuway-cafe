@@ -10,6 +10,8 @@
 
 html { -webkit-tap-highlight-color: transparent; }
 body { @apply bg-cream text-coffee-900 antialiased; font-size: 16px; }
+/* customer footer (Home · Activity · Messages): pages leave room for it; bottom bars sit just above it */
+body.has-bottom-nav { --nav-h: calc(4rem + env(safe-area-inset-bottom)); padding-bottom: var(--nav-h); }
 
 @layer components {
   .btn { @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-5 text-base font-semibold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coffee-600; }

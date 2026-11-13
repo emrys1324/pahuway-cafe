@@ -130,6 +130,7 @@ Open http://localhost:3000. Staff and riders sign in at http://localhost:3000/lo
 | Customer accounts | `npm run test:account` | Sign-up with the email optional: no email → account signs in with mobile number + password (ready immediately, one per number); sign-in accepts email or mobile; sign-up with an email unchanged; Forgot password (email link via the local mailbox; mobile accounts told to ask the café); admin temporary password for mobile accounts; change password in the account. |
 | Sign-in required + Google (13 checks) | `npm run test:signin` | With *Customers must sign in* on: checkout and the booking details step show the sign-in step; Continue with Google goes to Google and returns to the page; cancelled Google sign-in shows a message; Create account / Sign in return to checkout with name + mobile filled in; the order is linked to the account; booking form pre-filled; My scooter bookings list; off-site return addresses ignored; switch off → guests order again. Other browser tests turn the setting off for their guest flows. |
 | Landing page (17 checks) | `npm run test:landing` | Hero (title, buttons, menu photo or chosen photo, no faded background), guest sign-in shortcut, latest order shortcut, **Order again** (same items, quantities and options; sold-out items left out with a note), the two cards right under the header, Settings location + map link (https only). |
+| Footer & Messages (20 checks) | `npm run test:nav` | Home · Activity · Messages footer on customer pages (not checkout / staff), never covers content, View cart bar sits above it; guests asked to sign in; inbox messages on order received / ready / completed with a live unread badge; opening Messages marks them read; tapping opens the order; Activity lists orders / scooter rentals. |
 | Home-screen install (Padaya) | `npm run test:pwa` | Manifest (Padaya, standalone, 192/512 icons), iPhone home-screen tags, service worker + offline page, Install button (Android/desktop) and Share → Add to Home Screen tip (iPhone), Not now remembered. Needs a production build. |
 | Rider sign-in | `npm run test:rider-login` | rider.<domain> (e.g. rider.padaya.online) serves only the rider pages; /rider → /rider/login (Padaya Rider branding, own home-screen app opening at /rider), staff turned away, rider lands on My deliveries, sign out → rider sign-in, staff page links to it, old /login still works for riders. |
 | End-to-end acceptance test | `npm run test:e2e` | Needs local Supabase + `seed:users` + the app on :3000, plus Playwright (`npm i -D playwright && npx playwright install chromium`). Drives a customer phone, staff tablet and rider phone at once and re-creates the screenshots. |
@@ -184,3 +185,12 @@ The welcome page has a **hero** (photo, greeting, *Order food & drinks* / *Book 
 
 To edit it, go to **Settings → Branding → Welcome page**:
 - **Welcome page photo** (landscape, 1600 px+). Leave it empty to use the first menu photo.
+
+## Footer: Home · Activity · Messages
+Customer pages have an app-style footer. It's hidden on checkout and on staff, rider and sign-in screens.
+- **Home** opens the landing page.
+- **Activity** shows the customer's café orders and scooter rentals (two tabs). Guests are asked to sign in.
+- **Messages** is an inbox of automatic updates for signed-in customers, with a red unread badge that updates live:
+  - **Orders:** received, being prepared, ready / packed, on the way, completed / delivered, cancelled, GCash verified, refunded.
+  - **Bookings:** received, confirmed, picked up, returned, cancelled, deposit refunded.
+  - Database triggers write the messages (migration 0026, `customer_messages`). Customers can only read their own. Opening Messages marks them read. Guest orders get no messages.

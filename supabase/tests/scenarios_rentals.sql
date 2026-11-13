@@ -210,4 +210,13 @@ select pg_temp.check((select count(*) from rental_bookings) = 1 and (select cust
 reset role; select pg_temp.as_user('');
 update store_settings set require_account = false;
 
+-- inbox messages for the customer's booking: received → confirmed → cancelled (+ refund); guests' bookings get none
+update rental_bookings set status = 'confirmed' where customer_user_id = 'c0000000-0000-0000-0000-000000000001';
+update rental_bookings set status = 'cancelled', cancel_reason = 'test' where customer_user_id = 'c0000000-0000-0000-0000-000000000001';
+update rental_bookings set payment_status = 'refunded' where customer_user_id = 'c0000000-0000-0000-0000-000000000001';
+select pg_temp.check((select count(*) from customer_messages where user_id = 'c0000000-0000-0000-0000-000000000001') = 4
+  and exists (select 1 from customer_messages where title like 'Booking % · confirmed' and body like 'Your % is reserved%' and link like '/baybayin/booking/%'),
+  'booking messages: received, confirmed, cancelled, deposit refunded (with a link to the booking)');
+select pg_temp.check((select count(*) from customer_messages where user_id <> 'c0000000-0000-0000-0000-000000000001') = 0, 'guest bookings create no messages');
+
 select 'ALL RENTAL SCENARIOS PASSED';

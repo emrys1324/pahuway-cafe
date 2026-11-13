@@ -4,6 +4,7 @@ import { CartProvider } from "@/lib/cart";
 import { NativeBridge } from "@/components/NativeBridge";
 import { ServiceWorkerRegister } from "@/components/InstallPrompt";
 import { BrandBackground } from "@/components/BrandBackground";
+import { BottomNav } from "@/components/customer/BottomNav";
 import { StoreSettingsProvider } from "@/lib/store-settings";
 import { getSiteIcons } from "@/lib/site-icons";
 
@@ -47,7 +48,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegister />
         <StoreSettingsProvider>
           <BrandBackground />
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            {children}
+            <BottomNav />
+          </CartProvider>
         </StoreSettingsProvider>
       </body>
     </html>

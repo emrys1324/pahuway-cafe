@@ -164,3 +164,39 @@ set role anon;
 select pg_temp.expect_error($q$select place_order('{"customer_name":"Al","customer_phone":"09171234567","order_type":"pickup","payment_method":"cash"}', '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":1}]')$q$, 'SIGN_IN');
 reset role;
 update store_settings set require_account = false;
+
+-- customer inbox (Messages): automatic updates on the customer's own orders, private to them
+do $$
+declare v_token text; v_no text; n int;
+begin
+  perform set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000004', true);
+  select o->>'order_number', o->>'token' into v_no, v_token
+    from (select place_order('{"customer_name":"Lea","customer_phone":"09170000001","order_type":"pickup","payment_method":"cash"}', '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":1}]') o) x;
+  perform set_config('request.jwt.claim.sub', '', true);
+  update orders set status = 'preparing' where order_number = v_no;
+  update orders set status = 'ready' where order_number = v_no;
+  update orders set street = 'x' where order_number = v_no;  -- not a status change: no message
+  select count(*) into n from customer_messages where user_id = 'a0000000-0000-0000-0000-000000000004' and title like 'Order ' || v_no || '%';
+  if n <> 3 then raise exception 'FAIL: expected 3 order messages (received, preparing, ready), got %', n; end if;
+  if not exists (select 1 from customer_messages where title = 'Order ' || v_no || ' · ready' and body like 'Come pick it up%' and link like '/order/%') then
+    raise exception 'FAIL: ready message text/link';
+  end if;
+  raise notice 'ok signed-in customer gets inbox messages for order received / preparing / ready (with a link), not for other edits';
+  -- guest orders get none
+  select count(*) into n from customer_messages;
+  update orders set status = 'preparing' where customer_id is null and status = 'received';
+  if (select count(*) from customer_messages) <> n then raise exception 'FAIL: guest order created a message'; end if;
+  raise notice 'ok guest orders create no inbox messages';
+end $$;
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000002', false);
+select case when count(*) = 0 then 'ok other users cannot read someone else''s messages' else 'FAIL other user sees messages' end from customer_messages;
+select pg_temp.expect_error($q$insert into customer_messages (user_id, title) values (auth.uid(), 'spoof')$q$, 'row-level security');
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000004', false);
+select case when count(*) >= 3 and count(*) filter (where read_at is null) = count(*) then 'ok customer reads own messages, all unread' else 'FAIL own messages ' || count(*) end from customer_messages;
+select mark_messages_read();
+select case when count(*) filter (where read_at is null) = 0 then 'ok mark_messages_read marks them read' else 'FAIL still unread' end from customer_messages;
+reset role;
+set role anon;
+select case when count(*) = 0 then 'ok guests see no messages' else 'FAIL anon sees messages' end from customer_messages;
+reset role;
+select 'ALL MESSAGE SCENARIOS PASSED';
