@@ -313,6 +313,9 @@ interface MyBooking {
   start_date: string;
   scooter_name: string;
   status: BookingStatus;
+  return_at: string | null;
+  end_date: string;
+  total: number;
 }
 
 function Profile({ user, next }: { user: User; next: string | null }) {
@@ -331,7 +334,7 @@ function Profile({ user, next }: { user: User; next: string | null }) {
       supabase.from("orders").select("*").eq("customer_id", user.id).order("created_at", { ascending: false }).limit(20),
       supabase
         .from("rental_bookings")
-        .select("id, booking_number, public_token, pickup_at, start_date, scooter_name, status")
+        .select("id, booking_number, public_token, pickup_at, start_date, return_at, end_date, total, scooter_name, status")
         .eq("customer_user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -471,57 +474,9 @@ function Profile({ user, next }: { user: User; next: string | null }) {
         </button>
       </form>
 
-      <section className="card p-5">
-        <h2 className="section-title mb-2">Order history</h2>
-        {orders.length === 0 ? (
-          <p className="text-coffee-700">No orders yet. Orders you place while signed in will show here.</p>
-        ) : (
-          <ul className="divide-y divide-coffee-100">
-            {orders.map((o) => (
-              <li key={o.id}>
-                <Link href={`/order/${o.public_token}`} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="font-bold">{o.order_number}</p>
-                    <p className="text-sm text-coffee-700">
-                      {formatDateTime(o.created_at)} · {ORDER_TYPE_LABEL[o.order_type]}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold tabular-nums">{formatPeso(o.total)}</p>
-                    <Badge tone={o.status === "cancelled" ? "red" : o.status === "completed" ? "green" : "amber"}>{STATUS_LABEL[o.status]}</Badge>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="card p-5" data-testid="my-bookings">
-        <h2 className="section-title mb-2">My scooter bookings</h2>
-        {bookings.length === 0 ? (
-          <p className="text-coffee-700">No bookings yet. Scooters you book while signed in will show here.</p>
-        ) : (
-          <ul className="divide-y divide-coffee-100">
-            {bookings.map((b) => (
-              <li key={b.id}>
-                <Link href={`/baybayin/booking/${b.public_token}`} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="font-bold">{b.booking_number}</p>
-                    <p className="text-sm text-coffee-700">
-                      {b.scooter_name} · pickup {b.pickup_at ? formatDateTime(b.pickup_at) : b.start_date}
-                    </p>
-                  </div>
-                  <Badge tone={b.status === "cancelled" ? "red" : b.status === "returned" ? "green" : "amber"}>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</Badge>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <ChangePassword />
       <DeleteAccount />
+      <History orders={orders} bookings={bookings} />
       <p className="text-center text-sm">
         <Link href="/privacy" className="text-coffee-700 underline">
           Privacy policy
@@ -607,5 +562,110 @@ function MissingPhone({ userId, onSaved }: { userId: string; onSaved: (phone: st
         {busy ? <Spinner /> : "Save and continue"}
       </button>
     </form>
+  );
+}
+
+/** Bottom of the profile: café orders and scooter rentals, as two tabs. */
+function History({ orders, bookings }: { orders: Order[]; bookings: MyBooking[] }) {
+  const [tab, setTab] = useState<"orders" | "rentals">("orders");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("account-history-tab") === "rentals") setTab("rentals");
+    } catch {}
+  }, []);
+  const pick = (t: "orders" | "rentals") => {
+    setTab(t);
+    try {
+      localStorage.setItem("account-history-tab", t);
+    } catch {}
+  };
+  const tabs = [
+    { id: "orders" as const, label: "Orders", count: orders.length },
+    { id: "rentals" as const, label: "Scooter rentals", count: bookings.length },
+  ];
+  return (
+    <section className="card p-5" data-testid="history">
+      <h2 className="section-title mb-3">My history</h2>
+      <div role="tablist" aria-label="My history" className="grid grid-cols-2 gap-2 rounded-2xl bg-coffee-100 p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`panel-${t.id}`}
+            onClick={() => pick(t.id)}
+            className={`min-h-[44px] rounded-xl font-semibold ${tab === t.id ? "bg-white shadow" : "text-coffee-700"}`}
+          >
+            {t.label} <span className="tabular-nums text-coffee-600">({t.count})</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "orders" ? (
+        <div role="tabpanel" id="panel-orders" aria-labelledby="tab-orders" className="mt-3" data-testid="history-orders">
+          {orders.length === 0 ? (
+            <p className="py-3 text-coffee-700">
+              No orders yet.{" "}
+              <Link href="/menu" className="font-semibold underline">
+                Browse the menu
+              </Link>
+            </p>
+          ) : (
+            <ul className="divide-y divide-coffee-100">
+              {orders.map((o) => (
+                <li key={o.id}>
+                  <Link href={`/order/${o.public_token}`} className="flex items-center justify-between gap-3 py-3">
+                    <div>
+                      <p className="font-bold">{o.order_number}</p>
+                      <p className="text-sm text-coffee-700">
+                        {formatDateTime(o.created_at)} · {ORDER_TYPE_LABEL[o.order_type]}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold tabular-nums">{formatPeso(o.total)}</p>
+                      <Badge tone={o.status === "cancelled" ? "red" : o.status === "completed" ? "green" : "amber"}>{STATUS_LABEL[o.status]}</Badge>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <div role="tabpanel" id="panel-rentals" aria-labelledby="tab-rentals" className="mt-3" data-testid="history-rentals">
+          {bookings.length === 0 ? (
+            <p className="py-3 text-coffee-700">
+              No scooter rentals yet.{" "}
+              <Link href="/baybayin" className="font-semibold underline">
+                Book a scooter
+              </Link>
+            </p>
+          ) : (
+            <ul className="divide-y divide-coffee-100">
+              {bookings.map((b) => (
+                <li key={b.id}>
+                  <Link href={`/baybayin/booking/${b.public_token}`} className="flex items-center justify-between gap-3 py-3">
+                    <div>
+                      <p className="font-bold">
+                        {b.booking_number} · {b.scooter_name}
+                      </p>
+                      <p className="text-sm text-coffee-700">
+                        {b.pickup_at ? formatDateTime(b.pickup_at) : b.start_date} → {b.return_at ? formatDateTime(b.return_at) : b.end_date}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold tabular-nums">{formatPeso(b.total)}</p>
+                      <Badge tone={b.status === "cancelled" ? "red" : b.status === "returned" ? "green" : "amber"}>{BOOKING_STATUS_LABEL[b.status] ?? b.status}</Badge>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
