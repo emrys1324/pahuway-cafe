@@ -50,6 +50,8 @@ const PASS = "Kape-sa-umaga-1";
     await g.getByTestId("hero").waitFor();
     await g.getByTestId("choose-scooter").getByText("Book a scooter").waitFor();
     assert((await g.getByTestId("welcome-title").textContent()) === "Welcome!" && (await g.getByTestId("hero").getByRole("link").count()) === 0, "welcome header: title only, no buttons inside it");
+    const heroText = (await g.getByTestId("hero").innerText()).replace(/\n+/g, "\n").trim();
+    assert(heroText === "Welcome!\nWhat would you like to do today?", `welcome header shows only the greeting and the line under it (no name / tagline): ${JSON.stringify(heroText)}`);
     const pos = await g.evaluate(() => {
       const r = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect();
       return { heroBottom: r("hero").bottom, actions: r("main-actions"), shortcuts: document.querySelector("[data-testid=shortcuts]")?.getBoundingClientRect().top ?? 1e9, vh: innerHeight };

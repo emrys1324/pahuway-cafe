@@ -18,7 +18,6 @@ type Thumb = { id: string; name: string; photo_url: string };
 export function HomeChooser() {
   const { settings, open } = useStoreSettings();
   const { count } = useCart();
-  const site = brandOf(settings, "site");
   const cafe = brandOf(settings, "cafe");
   const bay = brandOf(settings, "baybayin");
   const t = welcomeTexts(settings);
@@ -64,10 +63,6 @@ export function HomeChooser() {
           )}
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
           <div className="flex min-h-[220px] flex-col justify-end gap-4 p-5 sm:min-h-[280px] sm:p-8">
-            <p className="text-sm font-semibold uppercase tracking-wider text-white/85">
-              {site.name}
-              {site.tagline && <span className="font-normal normal-case tracking-normal text-white/75"> · {site.tagline}</span>}
-            </p>
             <div>
               <h1 data-testid="welcome-title" className="font-display text-4xl font-bold leading-tight drop-shadow sm:text-5xl">
                 {firstName ? `Welcome, ${firstName}!` : t.title}
