@@ -34,8 +34,10 @@ export function SettingsAdmin() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setMsg(null);
+    if (s.location_map_url?.trim() && !/^https:\/\//.test(s.location_map_url.trim()))
+      return setMsg({ tone: "red", text: "Map link must start with https:// — copy it from Google Maps → Share." });
+    setBusy(true);
     const { error } = await getSupabase()
       .from("store_settings")
       .update({
@@ -79,6 +81,9 @@ export function SettingsAdmin() {
         background_fade: Math.min(95, Math.max(40, Number(s.background_fade) || 85)),
         online_payments_enabled: !!s.online_payments_enabled,
         require_account: s.require_account !== false,
+        hero_url: s.hero_url || null,
+        location_text: clean(s.location_text),
+        location_map_url: s.location_map_url?.trim() ? s.location_map_url.trim() : null,
       })
       .eq("id", 1);
     setBusy(false);
@@ -259,7 +264,7 @@ function imageSize(file: File): Promise<{ w: number; h: number } | null> {
 }
 
 type BrandTab = "site" | "cafe" | "baybayin" | "account";
-type UploadKind = "logo" | "site_logo" | "baybayin" | "account" | "background";
+type UploadKind = "logo" | "site_logo" | "baybayin" | "account" | "background" | "hero";
 const BRAND_TABS: { key: BrandTab; label: string; hint: string }[] = [
   { key: "site", label: "Welcome page", hint: "The home page where customers choose the café or scooter rental, plus the website icon." },
   { key: "cafe", label: "Pahuway Cafe", hint: "Header on the menu, checkout and order status pages." },
@@ -288,13 +293,13 @@ function BrandingSection({
     try {
       const size = await imageSize(file);
       if (!size) throw new Error("That file doesn't look like an image. Please use JPG, PNG or WebP.");
-      if (kind !== "background" && Math.min(size.w, size.h) < 128) throw new Error("Logo is too small — please use at least 256 × 256 pixels.");
-      if (kind === "background" && Math.max(size.w, size.h) < 1000) throw new Error("Background is too small — please use at least 1600 pixels wide so it stays sharp.");
-      const url = await uploadPublicImage(file, "branding", { maxDim: kind === "background" ? 2400 : 800 });
-      const field = ({ logo: "logo_url", site_logo: "site_logo_url", baybayin: "baybayin_logo_url", account: "account_logo_url", background: "background_url" } as const)[kind];
+      if (kind !== "background" && kind !== "hero" && Math.min(size.w, size.h) < 128) throw new Error("Logo is too small — please use at least 256 × 256 pixels.");
+      if ((kind === "background" || kind === "hero") && Math.max(size.w, size.h) < 1000) throw new Error(`${kind === "hero" ? "Photo" : "Background"} is too small — please use at least 1600 pixels wide so it stays sharp.`);
+      const url = await uploadPublicImage(file, "branding", { maxDim: kind === "background" || kind === "hero" ? 2400 : 800 });
+      const field = ({ logo: "logo_url", site_logo: "site_logo_url", baybayin: "baybayin_logo_url", account: "account_logo_url", background: "background_url", hero: "hero_url" } as const)[kind];
       set(field, url);
-      const squareNote = kind !== "background" && Math.abs(size.w - size.h) > Math.min(size.w, size.h) * 0.1 ? " Tip: a square logo looks best — it's shown in a circle." : "";
-      const what = { logo: "Logo", site_logo: "Welcome page logo", baybayin: "Baybayin logo", account: "Account page icon", background: "Background" }[kind];
+      const squareNote = kind !== "background" && kind !== "hero" && Math.abs(size.w - size.h) > Math.min(size.w, size.h) * 0.1 ? " Tip: a square logo looks best — it's shown in a circle." : "";
+      const what = { logo: "Logo", site_logo: "Welcome page logo", baybayin: "Baybayin logo", account: "Account page icon", background: "Background", hero: "Welcome page photo" }[kind];
       setMsg({ tone: "green", text: `${what} uploaded — press Save settings to publish it.${squareNote}` });
     } catch (err) {
       setMsg({ tone: "red", text: (err as Error).message });
@@ -381,6 +386,33 @@ function BrandingSection({
               <TextInput id="cafe-card-text" label={`“Order from ${cafe.name}” card`} placeholder={DEFAULTS.cafeCard} maxLength={140} multiline {...text("cafe_card_text")} />
               <TextInput id="baybayin-card-text" label={`“Rent a scooter from ${bay.name}” card`} placeholder={DEFAULTS.baybayinCard} maxLength={140} multiline hint="Also shown on the Baybayin Coming soon page." {...text("baybayin_card_text")} />
               <p className="hint">Leave any field empty to use the text shown in grey.</p>
+            </div>
+            <div className="space-y-3 border-t border-coffee-100 pt-5" data-testid="landing-settings">
+              <p className="font-bold">Welcome page photo &amp; location</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-coffee-100 sm:w-48">
+                  {s.hero_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.hero_url} alt="Welcome page photo" data-testid="hero-preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="px-3 text-center text-sm text-coffee-600">Using a menu photo</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="btn-secondary btn-sm cursor-pointer">
+                    {uploading ? <Spinner /> : "Upload photo"}
+                    <input type="file" accept="image/*" className="sr-only" aria-label="Upload welcome page photo" onChange={(e) => upload(e.target.files?.[0], "hero")} />
+                  </label>
+                  {s.hero_url && (
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => set("hero_url", null)}>
+                      Use a menu photo
+                    </button>
+                  )}
+                  <p className="hint">Big photo at the top of the welcome page. Landscape, at least 1600 px wide. Empty = the first menu photo.</p>
+                </div>
+              </div>
+              <TextInput id="location-text" label="Where to find us" placeholder="e.g. Poblacion, San Agustin, Romblon — beside the town plaza" maxLength={160} hint="Shown on the welcome page. Empty = hidden." {...text("location_text")} />
+              <TextInput id="location-map-url" label="Map link" placeholder="https://maps.app.goo.gl/…" maxLength={300} hint="Optional: a Google Maps share link (starts with https://)." {...text("location_map_url")} />
             </div>
             <SiteIconField icons={s.site_icons ?? null} uploading={uploading} onUpload={uploadIcon} onClear={() => set("site_icons", null)} />
           </>

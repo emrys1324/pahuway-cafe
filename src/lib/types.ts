@@ -46,6 +46,9 @@ export interface StoreSettings {
   staff_title: string;
   online_payments_enabled: boolean;
   require_account?: boolean;
+  hero_url?: string | null;
+  location_text?: string | null;
+  location_map_url?: string | null;
 }
 
 export interface Category {

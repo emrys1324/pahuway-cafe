@@ -11,7 +11,8 @@ const STAFF_ROUTES = ["/admin", "/rider", "/login"];
 export function BrandBackground() {
   const path = usePathname() ?? "/";
   const { settings } = useStoreSettings();
-  if (!settings?.background_url || STAFF_ROUTES.some((r) => path.startsWith(r))) return null;
+  // the landing page has its own hero photo instead
+  if (!settings?.background_url || path === "/" || STAFF_ROUTES.some((r) => path.startsWith(r))) return null;
   return <BackgroundLayer url={settings.background_url} fade={settings.background_fade ?? 85} />;
 }
 
