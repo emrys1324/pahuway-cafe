@@ -76,8 +76,28 @@ async function cartAndCheckout(page) {
     await guest.locator("#renter-name").waitFor();
     assert((await guest.locator("#renter-name").inputValue()) === "Gate Tester", "signed-in renter's name is filled in on the booking form");
     await guest.goto(BASE + "/account");
-    await guest.getByTestId("my-bookings").waitFor();
-    assert(true, "My account has a 'My scooter bookings' list");
+    const hist = guest.getByTestId("history");
+    await hist.waitFor();
+    const order = sql(`select o.order_number from orders o join auth.users a on a.id = o.customer_id where a.email = '${PHONE}@phone.invalid'`);
+    // a scooter booking for this customer (made directly, so the test doesn't depend on calendar times)
+    const bk = sql(`insert into rental_bookings (scooter_id, scooter_name, customer_name, customer_phone, start_date, end_date, days, daily_rate, total, deposit_amount, license_path, pickup_at, return_at, blocked_until, customer_user_id)
+      select s.id, s.name, 'Gate Tester', '${PHONE}', current_date + 30, current_date + 31, 1, 500, 500, 250, 'test/license.png', (current_date + 30) + time '09:00', (current_date + 31) + time '09:00', (current_date + 31) + time '09:30', u.id
+      from scooters s, auth.users u where s.is_active and u.email = '${PHONE}@phone.invalid' limit 1 returning booking_number`).split("\n")[0];
+    await guest.reload();
+    await hist.waitFor();
+    const boxes = await hist.boundingBox(), page = await guest.evaluate(() => document.body.scrollHeight);
+    assert(page - (boxes.y + boxes.height) < 200, "My history sits at the bottom of the account page");
+    assert((await hist.getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Scooter rentals (1)", "two tabs: Orders and Scooter rentals, with counts");
+    assert((await hist.getByTestId("history-orders").innerText()).includes(order), "Orders tab lists the customer's café order");
+    await hist.getByRole("tab", { name: /Scooter rentals/ }).click();
+    const rentals = await hist.getByTestId("history-rentals").innerText();
+    assert(rentals.includes(bk) && rentals.includes("₱500") && (await hist.getByTestId("history-orders").count()) === 0, "Scooter rentals tab lists the booking (number, scooter, dates, total, status)");
+    await guest.reload();
+    await hist.getByTestId("history-rentals").waitFor();
+    assert(true, "the chosen tab is remembered on this phone");
+    await hist.getByRole("link", { name: new RegExp(bk) }).click();
+    await guest.waitForURL(/\/baybayin\/booking\//);
+    assert(true, "tapping a rental opens its booking page");
 
     // ---- signed out: Baybayin shows dates & scooters but asks to sign in before details
     const anon = await (await browser.newContext(devices["iPhone 13"])).newPage();
