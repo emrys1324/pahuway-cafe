@@ -58,6 +58,35 @@ const assert = (c, m) => {
   await page.waitForURL(BASE + "/rider");
   assert(true, "riders who use the old /login link still land on their deliveries");
 
+  // rider.<domain>: the rider pages only (rider.padaya.test → this test server)
+  const rb = await chromium.launch({ args: ["--host-resolver-rules=MAP rider.padaya.test 127.0.0.1"] });
+  const RB = BASE.replace("localhost", "rider.padaya.test");
+  const rp = await (await rb.newContext(devices["Pixel 7"])).newPage();
+  await rp.goto(RB + "/");
+  await rp.waitForURL(RB + "/rider/login");
+  await rp.getByRole("heading", { name: "Rider sign in" }).waitFor();
+  assert(true, "rider.<domain>/ opens the rider sign-in");
+  await rp.locator("#rider-email").fill("rider@pahuway.cafe");
+  await rp.locator("#rider-password").fill("ChangeMe-Rider-2026");
+  await rp.getByRole("button", { name: "Sign in" }).click();
+  await rp.waitForURL(RB + "/rider");
+  await rp.getByRole("heading", { name: "My deliveries" }).waitFor();
+  await rp.goto(RB + "/");
+  await rp.getByRole("heading", { name: "My deliveries" }).waitFor();
+  assert(new URL(rp.url()).pathname === "/", "signed in, rider.<domain>/ shows My deliveries (address stays on the rider domain)");
+  await rp.goto(RB + "/login");
+  await rp.waitForURL(RB + "/rider/login").catch(() => null);
+  await rp.waitForURL(RB + "/rider"); // signed in: the rider sign-in hands over to My deliveries
+  assert(new URL(rp.url()).host.startsWith("rider.padaya.test"), "rider.<domain>/login stays on the rider domain (rider sign-in → My deliveries)");
+  // (here the main site and the test server share one address, so check the redirect itself)
+  const loc = await new Promise((res) => require("http").get({ host: "127.0.0.1", port: 3000, path: "/admin", headers: { host: "rider.padaya.test:3000" } }, (r) => res([r.statusCode, r.headers.location])).on("error", () => res([0, ""])));
+  assert(loc[0] === 307 && /\/admin$/.test(loc[1]) && !/rider/.test(loc[1]), `other pages on the rider domain (e.g. /admin) redirect to the main site's page (${loc.join(" ")})`);
+  const man = await new Promise((res) => require("http").get({ host: "127.0.0.1", port: 3000, path: "/rider/manifest.webmanifest", headers: { host: "rider.padaya.test:3000" } }, (r) => { let d = ""; r.on("data", (c) => (d += c)); r.on("end", () => res([r.statusCode, d])); }).on("error", () => res([0, ""])));
+  assert(man[0] === 200 && JSON.parse(man[1]).name === "Padaya Rider", "the rider home-screen app works on the rider domain");
+  const r4 = await fetch(BASE + "/menu", { redirect: "manual" });
+  assert(r4.status === 200, "the main site is unchanged (menu still loads normally)");
+  await rb.close();
+
   await browser.close();
   console.log("\nAll rider sign-in checks passed.");
 })().catch((e) => {
