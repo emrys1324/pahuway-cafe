@@ -84,7 +84,7 @@ export function HomeChooser() {
             <img src={hero} alt="" data-testid="hero-photo" className="absolute inset-0 -z-10 h-full w-full object-cover" />
           )}
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
-          <div className="flex min-h-[300px] flex-col justify-end gap-4 p-5 sm:min-h-[360px] sm:p-8">
+          <div className="flex min-h-[220px] flex-col justify-end gap-4 p-5 sm:min-h-[280px] sm:p-8">
             <p className="text-sm font-semibold uppercase tracking-wider text-white/85">
               {site.name}
               {site.tagline && <span className="font-normal normal-case tracking-normal text-white/75"> · {site.tagline}</span>}
@@ -99,16 +99,40 @@ export function HomeChooser() {
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/menu" className="btn-primary bg-white text-coffee-900 hover:bg-cream" data-testid="hero-order">
-                Order food &amp; drinks
-              </Link>
-              <Link href="/baybayin" className="btn-secondary border-white/70 bg-white/10 text-white backdrop-blur hover:bg-white/20" data-testid="hero-rent">
-                {rentOpen ? "Book a scooter" : "Scooter rentals"}
-              </Link>
-            </div>
           </div>
         </section>
+
+        {/* The two main actions, right under the welcome header */}
+        <nav aria-label="What would you like to do?" className="grid grid-cols-2 gap-3 sm:gap-4" data-testid="main-actions">
+          <Link
+            href="/menu"
+            data-testid="action-order"
+            className="group flex flex-col gap-3 rounded-3xl bg-coffee-800 p-4 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coffee-800 sm:p-5"
+          >
+            <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl sm:h-14 sm:w-14 sm:text-3xl">
+              ☕
+            </span>
+            <span className="font-display text-lg font-bold leading-tight sm:text-2xl">Order food &amp; drinks</span>
+            <span className="mt-auto flex items-center justify-between gap-2 text-sm text-white/85">
+              <span>{count > 0 ? `${count} in cart` : open ? "Open now" : "See the menu"}</span>
+              <span aria-hidden className="text-xl transition group-hover:translate-x-1">→</span>
+            </span>
+          </Link>
+          <Link
+            href="/baybayin"
+            data-testid="action-rent"
+            className="group flex flex-col gap-3 rounded-3xl bg-sky-800 p-4 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800 sm:p-5"
+          >
+            <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl sm:h-14 sm:w-14 sm:text-3xl">
+              🛵
+            </span>
+            <span className="font-display text-lg font-bold leading-tight sm:text-2xl">{rentOpen ? "Book a scooter" : "Scooter rentals"}</span>
+            <span className="mt-auto flex items-center justify-between gap-2 text-sm text-white/85">
+              <span>{rs ? (rentOpen ? "Book now" : "Coming soon") : bay.name}</span>
+              <span aria-hidden className="text-xl transition group-hover:translate-x-1">→</span>
+            </span>
+          </Link>
+        </nav>
 
         <HomeShortcuts />
 
