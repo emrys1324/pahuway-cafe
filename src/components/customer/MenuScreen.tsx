@@ -44,6 +44,14 @@ export function MenuScreen() {
     [data],
   );
 
+  // opened from a listing card (/menu?item=…): open that item straight away
+  useEffect(() => {
+    if (!data) return;
+    const id = new URLSearchParams(window.location.search).get("item");
+    const item = id ? data.items.find((i) => i.id === id) : null;
+    if (item) setActive(item);
+  }, [data]);
+
   // opened from a "What are you craving?" shortcut (/menu#cat-…): jump to that category once the menu has loaded
   const hasMenu = !!data;
   useEffect(() => {

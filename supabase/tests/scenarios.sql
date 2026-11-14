@@ -242,3 +242,19 @@ select pg_temp.expect_error($q$select send_order_message((select id from orders 
 reset role;
 update store_settings set cash_after_orders = 0;
 select 'ALL CASH & CHAT SCENARIOS PASSED';
+
+-- hub: businesses (public read, admin-only write) and favourites (private to each customer)
+select case when count(*) = 2 then 'ok two businesses: Pahuway Cafe and Baybayin' else 'FAIL businesses ' || count(*) end from businesses;
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000004', false);
+insert into favourites (user_id, kind, item_id) values (auth.uid(), 'menu_item', '30000000-0000-0000-0000-000000000013');
+select pg_temp.expect_error($q$insert into favourites (user_id, kind, item_id) values ('a0000000-0000-0000-0000-000000000009', 'menu_item', '30000000-0000-0000-0000-000000000013')$q$, 'row-level security');
+select pg_temp.expect_error($q$insert into businesses (slug, name, kind) values ('sneaky', 'Sneaky', 'food')$q$, 'row-level security');
+select case when count(*) = 1 then 'ok customer saves and sees their own favourite' else 'FAIL own favourites ' || count(*) end from favourites;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select case when count(*) = 0 then 'ok other customers cannot see it' else 'FAIL other customer sees favourites' end from favourites;
+reset role;
+set role anon;
+select case when count(*) = 2 then 'ok guests can read the businesses list' else 'FAIL anon businesses' end from businesses;
+select case when count(*) = 0 then 'ok guests see no favourites' else 'FAIL anon favourites' end from favourites;
+reset role;
+select 'ALL HUB SCENARIOS PASSED';
