@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, PageLoader, Spinner, Toggle } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { uploadPublicImage, uploadSiteIcons } from "@/lib/upload";
-import { brandOf, DEFAULTS, DEFAULT_LOGO, type Brand } from "@/lib/brands";
+import { brandOf, DEFAULTS, DEFAULT_LOGO, welcomeTexts, type Brand } from "@/lib/brands";
 import { useStoreSettings } from "@/lib/store-settings";
 import { BackgroundLayer } from "@/components/BrandBackground";
 import { DEFAULT_STAFF_HEADER, headerTheme, isHex } from "@/lib/color";
+import { HOME_CARD_DEFAULTS, HomeCard } from "@/components/customer/HomeCard";
 import type { StoreSettings } from "@/lib/types";
 import { TeamSection } from "./TeamAdmin";
 import { CustomerPasswordReset } from "./CustomerPasswordReset";
@@ -80,6 +81,12 @@ export function SettingsAdmin() {
         online_payments_enabled: !!s.online_payments_enabled,
         require_account: s.require_account !== false,
         hero_url: s.hero_url || null,
+        home_cafe_color: isHex(s.home_cafe_color) ? s.home_cafe_color : null,
+        home_cafe_logo_url: s.home_cafe_logo_url || null,
+        home_cafe_bg_url: s.home_cafe_bg_url || null,
+        home_bay_color: isHex(s.home_bay_color) ? s.home_bay_color : null,
+        home_bay_logo_url: s.home_bay_logo_url || null,
+        home_bay_bg_url: s.home_bay_bg_url || null,
       })
       .eq("id", 1);
     setBusy(false);
@@ -260,7 +267,7 @@ function imageSize(file: File): Promise<{ w: number; h: number } | null> {
 }
 
 type BrandTab = "site" | "cafe" | "baybayin" | "account";
-type UploadKind = "logo" | "site_logo" | "baybayin" | "account" | "background" | "hero";
+type UploadKind = "logo" | "site_logo" | "baybayin" | "account" | "background" | "hero" | "home_cafe_logo" | "home_bay_logo" | "home_cafe_bg" | "home_bay_bg";
 const BRAND_TABS: { key: BrandTab; label: string; hint: string }[] = [
   { key: "site", label: "Welcome page", hint: "The home page where customers choose the café or scooter rental, plus the website icon." },
   { key: "cafe", label: "Pahuway Cafe", hint: "Header on the menu, checkout and order status pages." },
@@ -289,13 +296,15 @@ function BrandingSection({
     try {
       const size = await imageSize(file);
       if (!size) throw new Error("That file doesn't look like an image. Please use JPG, PNG or WebP.");
-      if (kind !== "background" && kind !== "hero" && Math.min(size.w, size.h) < 128) throw new Error("Logo is too small — please use at least 256 × 256 pixels.");
+      const photo = kind === "background" || kind === "hero" || kind === "home_cafe_bg" || kind === "home_bay_bg";
+      if (!photo && Math.min(size.w, size.h) < 128) throw new Error("Logo is too small — please use at least 256 × 256 pixels.");
       if ((kind === "background" || kind === "hero") && Math.max(size.w, size.h) < 1000) throw new Error(`${kind === "hero" ? "Photo" : "Background"} is too small — please use at least 1600 pixels wide so it stays sharp.`);
-      const url = await uploadPublicImage(file, "branding", { maxDim: kind === "background" || kind === "hero" ? 2400 : 800 });
-      const field = ({ logo: "logo_url", site_logo: "site_logo_url", baybayin: "baybayin_logo_url", account: "account_logo_url", background: "background_url", hero: "hero_url" } as const)[kind];
+      if ((kind === "home_cafe_bg" || kind === "home_bay_bg") && Math.max(size.w, size.h) < 600) throw new Error("Card photo is too small — please use at least 800 pixels wide.");
+      const url = await uploadPublicImage(file, "branding", { maxDim: kind === "background" || kind === "hero" ? 2400 : photo ? 1200 : 800 });
+      const field = ({ logo: "logo_url", site_logo: "site_logo_url", baybayin: "baybayin_logo_url", account: "account_logo_url", background: "background_url", hero: "hero_url", home_cafe_logo: "home_cafe_logo_url", home_bay_logo: "home_bay_logo_url", home_cafe_bg: "home_cafe_bg_url", home_bay_bg: "home_bay_bg_url" } as const)[kind];
       set(field, url);
-      const squareNote = kind !== "background" && kind !== "hero" && Math.abs(size.w - size.h) > Math.min(size.w, size.h) * 0.1 ? " Tip: a square logo looks best — it's shown in a circle." : "";
-      const what = { logo: "Logo", site_logo: "Welcome page logo", baybayin: "Baybayin logo", account: "Account page icon", background: "Background", hero: "Welcome page photo" }[kind];
+      const squareNote = !photo && Math.abs(size.w - size.h) > Math.min(size.w, size.h) * 0.1 ? " Tip: a square logo looks best — it's shown in a circle." : "";
+      const what = { logo: "Logo", site_logo: "Welcome page logo", baybayin: "Baybayin logo", account: "Account page icon", background: "Background", hero: "Welcome page photo", home_cafe_logo: "Café card logo", home_bay_logo: "Scooter card logo", home_cafe_bg: "Café card photo", home_bay_bg: "Scooter card photo" }[kind];
       setMsg({ tone: "green", text: `${what} uploaded — press Save settings to publish it.${squareNote}` });
     } catch (err) {
       setMsg({ tone: "red", text: (err as Error).message });
@@ -407,6 +416,49 @@ function BrandingSection({
                   <p className="hint">Big photo at the top of the welcome page. Landscape, at least 1600 px wide. Empty = the first menu photo.</p>
                 </div>
               </div>
+            </div>
+            <div className="space-y-4 border-t border-coffee-100 pt-5" data-testid="home-card-settings">
+              <p className="font-bold">Home page cards</p>
+              <div className="grid grid-cols-2 gap-3" data-testid="home-card-preview">
+                <HomeCard color={s.home_cafe_color} fallbackColor={HOME_CARD_DEFAULTS.cafe} bgUrl={s.home_cafe_bg_url} logo={s.home_cafe_logo_url || cafe.logo} emoji="☕" title="Order food & drinks" text={welcomeTexts(s).cafeCard} status="Open now" />
+                <HomeCard color={s.home_bay_color} fallbackColor={HOME_CARD_DEFAULTS.bay} bgUrl={s.home_bay_bg_url} logo={s.home_bay_logo_url || bay.logo} emoji={bay.emoji} title="Book a scooter" text={welcomeTexts(s).baybayinCard} status="Book now" />
+              </div>
+              {(
+                [
+                  { key: "cafe", name: "“Order food & drinks” card", color: "home_cafe_color", logo: "home_cafe_logo_url", bg: "home_cafe_bg_url", fallback: HOME_CARD_DEFAULTS.cafe, brandLogo: cafe.logo, emoji: "☕" },
+                  { key: "bay", name: "“Book a scooter” card", color: "home_bay_color", logo: "home_bay_logo_url", bg: "home_bay_bg_url", fallback: HOME_CARD_DEFAULTS.bay, brandLogo: bay.logo, emoji: bay.emoji },
+                ] as const
+              ).map((c) => (
+                <div key={c.key} className="space-y-3 rounded-2xl border border-coffee-100 p-4" data-testid={`home-card-${c.key}`}>
+                  <p className="font-semibold">{c.name}</p>
+                  <ColorField id={`home-${c.key}-color`} label="Background colour" value={s[c.color] ?? null} fallback={c.fallback} onChange={(v) => set(c.color, v)} />
+                  <LogoField
+                    label="Logo"
+                    preview={s[c.logo] || c.brandLogo}
+                    emoji={c.emoji}
+                    ariaUpload={`Upload ${c.key === "cafe" ? "café" : "scooter"} card logo`}
+                    testId={`home-${c.key}-logo-preview`}
+                    uploading={uploading}
+                    hasCustom={!!s[c.logo]}
+                    clearLabel="Use the brand logo"
+                    onUpload={(f) => upload(f, c.key === "cafe" ? "home_cafe_logo" : "home_bay_logo")}
+                    onClear={() => set(c.logo, null)}
+                    hint="Square image, at least 256 × 256 px. Empty = the brand's logo."
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="btn-secondary btn-sm cursor-pointer">
+                      {uploading ? <Spinner /> : s[c.bg] ? "Change background photo" : "Add background photo"}
+                      <input type="file" accept="image/*" className="sr-only" aria-label={`Upload ${c.key === "cafe" ? "café" : "scooter"} card background photo`} onChange={(e) => upload(e.target.files?.[0], c.key === "cafe" ? "home_cafe_bg" : "home_bay_bg")} />
+                    </label>
+                    {s[c.bg] && (
+                      <button type="button" className="btn-ghost btn-sm" onClick={() => set(c.bg, null)}>
+                        Remove photo
+                      </button>
+                    )}
+                  </div>
+                  <p className="hint">Optional photo behind the card (darkened so the text stays readable). Without one, the card uses the background colour; the text turns dark or light automatically.</p>
+                </div>
+              ))}
             </div>
             <SiteIconField icons={s.site_icons ?? null} uploading={uploading} onUpload={uploadIcon} onClear={() => set("site_icons", null)} />
           </>

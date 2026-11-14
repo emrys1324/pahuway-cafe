@@ -185,6 +185,7 @@ The welcome page has a **hero** (photo, greeting, *Order food & drinks* / *Book 
 
 To edit it, go to **Settings → Branding → Welcome page**:
 - **Welcome page photo** (landscape, 1600 px+). Leave it empty to use the first menu photo.
+- **Home page cards**: for each of the two cards (*Order food & drinks* / *Book a scooter*), set the **background colour**, the **logo** (empty = the brand logo) and an optional **background photo** (darkened so the text stays readable). There's a live preview. The text switches between dark and light to suit the colour (migration 0027).
 
 ## Footer: Home · Activity · Messages
 Customer pages have an app-style footer. It's hidden on checkout and on staff, rider and sign-in screens.

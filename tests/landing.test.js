@@ -50,6 +50,8 @@ const PASS = "Kape-sa-umaga-1";
     await g.getByTestId("hero").waitFor();
     await g.getByTestId("choose-scooter").getByText("Book a scooter").waitFor();
     assert((await g.getByTestId("welcome-title").textContent()) === "Welcome!" && (await g.getByTestId("hero").getByRole("link").count()) === 0, "welcome header: title only, no buttons inside it");
+    const heroH = (await g.getByTestId("hero").boundingBox()).height;
+    assert(heroH <= 160, `welcome banner is half its old height on a phone (${Math.round(heroH)}px, was ~260)`);
     const heroText = (await g.getByTestId("hero").innerText()).replace(/\n+/g, "\n").trim();
     assert(heroText === "Welcome!\nWhat would you like to do today?", `welcome header shows only the greeting and the line under it (no name / tagline): ${JSON.stringify(heroText)}`);
     const pos = await g.evaluate(() => {
@@ -85,6 +87,38 @@ const PASS = "Kape-sa-umaga-1";
     await admin.goto(BASE + "/admin/settings");
     await admin.getByTestId("landing-settings").waitFor();
     assert((await admin.locator("#location-text").count()) === 0 && (await admin.locator("input[aria-label='Upload welcome page photo']").count()) === 1, "Settings → Welcome page has the photo upload and no location fields");
+
+    // ---- Home page cards: colour, logo and background photo are editable, with a live preview
+    const F = (n) => path.join(__dirname, "fixtures", n);
+    const cardSet = admin.getByTestId("home-card-settings");
+    await cardSet.scrollIntoViewIfNeeded();
+    await admin.getByTestId("home-card-cafe").getByRole("group", { name: "Background colour" }).getByRole("button", { name: "Use colour #efe4d8" }).click();
+    const prevBg = await admin.getByTestId("home-card-preview").locator("> *").first().evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+    assert(prevBg[0] === "rgb(239, 228, 216)" && prevBg[1] === "rgb(46, 30, 20)", "preview: a light café card colour switches its text to dark automatically");
+    await admin.setInputFiles("input[aria-label='Upload scooter card logo']", F("test-logo.png"));
+    await admin.getByText("Scooter card logo uploaded").waitFor();
+    const bayLogo = await admin.getByTestId("home-bay-logo-preview").getAttribute("src");
+    await admin.setInputFiles("input[aria-label='Upload scooter card background photo']", F("test-background.png"));
+    await admin.getByText("Scooter card photo uploaded").waitFor();
+    assert((await admin.getByTestId("home-card-preview").getByTestId("home-card-bg").count()) === 1, "preview shows the scooter card's background photo");
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select home_cafe_color || '|' || (home_bay_logo_url is not null) || '|' || (home_bay_bg_url is not null) from store_settings") === "#efe4d8|true|true", "card colour, logo and photo are saved");
+    await g.goto(BASE + "/");
+    await g.getByTestId("choose-cafe").waitFor();
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(239, 228, 216)", null, { timeout: 8000 });
+    assert((await g.getByTestId("choose-cafe").evaluate((el) => getComputedStyle(el).color)) === "rgb(46, 30, 20)", "Home: the café card uses the chosen colour, with readable dark text");
+    assert((await g.getByTestId("choose-scooter").getByTestId("baybayin-logo").getAttribute("src")) === bayLogo && (await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 1 && (await g.getByTestId("choose-scooter").evaluate((el) => getComputedStyle(el).color)) === "rgb(255, 255, 255)", "Home: the scooter card shows the uploaded logo and background photo, with white text");
+    // back to defaults
+    await admin.getByTestId("home-card-cafe").getByRole("button", { name: "Background colour: use default" }).click();
+    await admin.getByTestId("home-card-bay").getByRole("button", { name: "Use the brand logo" }).click();
+    await admin.getByTestId("home-card-bay").getByRole("button", { name: "Remove photo" }).click();
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select coalesce(home_cafe_color, '') || '|' || coalesce(home_bay_logo_url, '') || '|' || coalesce(home_bay_bg_url, '') from store_settings") === "||", "clearing them returns the cards to the built-in look");
+    await g.reload();
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(67, 44, 29)", null, { timeout: 8000 });
+    assert((await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 0, "Home: default café brown and no scooter photo again");
 
     // ---- hero photo from Settings
     sql("update store_settings set hero_url = '/menu/latte.svg'");
@@ -123,7 +157,7 @@ const PASS = "Kape-sa-umaga-1";
     console.log("ALL LANDING PAGE CHECKS PASSED");
   } finally {
     sql("update menu_items set is_sold_out = false where name = 'Americano'");
-    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null");
+    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null");
     await browser.close();
   }
 })().catch((e) => {

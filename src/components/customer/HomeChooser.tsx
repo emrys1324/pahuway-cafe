@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StoreHeader } from "./Header";
 import { HomeShortcuts } from "./HomeShortcuts";
+import { HOME_CARD_DEFAULTS, HomeCard } from "./HomeCard";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useFirstName } from "@/lib/use-first-name";
 import { useCart } from "@/lib/cart";
@@ -62,13 +63,13 @@ export function HomeChooser() {
             <img src={hero} alt="" data-testid="hero-photo" className="absolute inset-0 -z-10 h-full w-full object-cover" />
           )}
           <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
-          <div className="flex min-h-[220px] flex-col justify-end gap-4 p-5 sm:min-h-[280px] sm:p-8">
+          <div className="flex min-h-[110px] flex-col justify-end gap-1 px-5 py-4 sm:min-h-[140px] sm:px-8 sm:py-5">
             <div>
-              <h1 data-testid="welcome-title" className="font-display text-4xl font-bold leading-tight drop-shadow sm:text-5xl">
+              <h1 data-testid="welcome-title" className="font-display text-3xl font-bold leading-tight drop-shadow sm:text-4xl">
                 {firstName ? `Welcome, ${firstName}!` : t.title}
               </h1>
               {t.subtitle && (
-                <p data-testid="welcome-subtitle" className="mt-1 text-lg text-white/90 drop-shadow">
+                <p data-testid="welcome-subtitle" className="text-base text-white/90 drop-shadow sm:text-lg">
                   {t.subtitle}
                 </p>
               )}
@@ -78,54 +79,31 @@ export function HomeChooser() {
 
         {/* The two main actions, right under the welcome header */}
         <nav aria-label="What would you like to do?" className="grid grid-cols-2 gap-3 sm:gap-4" data-testid="main-actions">
-          <Link
+          <HomeCard
             href="/menu"
-            data-testid="choose-cafe"
-            className="group flex flex-col gap-3 rounded-3xl bg-coffee-800 p-4 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coffee-800 sm:p-5"
-          >
-            {cafe.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={cafe.logo} alt="" className="h-12 w-12 rounded-2xl bg-cream object-cover sm:h-14 sm:w-14" />
-            ) : (
-              <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl sm:h-14 sm:w-14 sm:text-3xl">
-                ☕
-              </span>
-            )}
-            <span>
-              <span className="block font-display text-lg font-bold leading-tight sm:text-2xl">Order food &amp; drinks</span>
-              {t.cafeCard && <span className="mt-1 line-clamp-2 block text-sm text-white/80">{t.cafeCard}</span>}
-            </span>
-            <span className="mt-auto flex items-end justify-between gap-2 text-sm font-semibold text-white/90">
-              <span>{count > 0 ? `${count} item${count === 1 ? "" : "s"} in cart` : cafeStatus?.text ?? "See the menu"}</span>
-              <span aria-hidden className="text-xl transition group-hover:translate-x-1">
-                →
-              </span>
-            </span>
-          </Link>
-          <Link
+            testId="choose-cafe"
+            color={settings?.home_cafe_color}
+            fallbackColor={HOME_CARD_DEFAULTS.cafe}
+            bgUrl={settings?.home_cafe_bg_url}
+            logo={settings?.home_cafe_logo_url || cafe.logo}
+            emoji="☕"
+            title="Order food & drinks"
+            text={t.cafeCard}
+            status={count > 0 ? `${count} item${count === 1 ? "" : "s"} in cart` : cafeStatus?.text ?? "See the menu"}
+          />
+          <HomeCard
             href="/baybayin"
-            data-testid="choose-scooter"
-            className="group flex flex-col gap-3 rounded-3xl bg-sky-800 p-4 text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800 sm:p-5"
-          >
-            {bay.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={bay.logo} alt="" data-testid="baybayin-logo" className="h-12 w-12 rounded-2xl bg-white object-contain p-1 sm:h-14 sm:w-14" />
-            ) : (
-              <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl sm:h-14 sm:w-14 sm:text-3xl">
-                {bay.emoji}
-              </span>
-            )}
-            <span>
-              <span className="block font-display text-lg font-bold leading-tight sm:text-2xl">{rentOpen ? "Book a scooter" : "Scooter rentals"}</span>
-              {t.baybayinCard && <span className="mt-1 line-clamp-2 block text-sm text-white/80">{t.baybayinCard}</span>}
-            </span>
-            <span className="mt-auto flex items-end justify-between gap-2 text-sm font-semibold text-white/90">
-              <span>{rs ? (rentOpen ? "Book now" : "Coming soon") : bay.name}</span>
-              <span aria-hidden className="text-xl transition group-hover:translate-x-1">
-                →
-              </span>
-            </span>
-          </Link>
+            testId="choose-scooter"
+            color={settings?.home_bay_color}
+            fallbackColor={HOME_CARD_DEFAULTS.bay}
+            bgUrl={settings?.home_bay_bg_url}
+            logo={settings?.home_bay_logo_url || bay.logo}
+            logoTestId="baybayin-logo"
+            emoji={bay.emoji}
+            title={rentOpen ? "Book a scooter" : "Scooter rentals"}
+            text={t.baybayinCard}
+            status={rs ? (rentOpen ? "Book now" : "Coming soon") : bay.name}
+          />
         </nav>
 
         <HomeShortcuts />
