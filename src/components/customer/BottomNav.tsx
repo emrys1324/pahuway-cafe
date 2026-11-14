@@ -57,19 +57,20 @@ export function BottomNav() {
   if (hidden) return null;
   const tabs = [
     { href: "/", label: "Home", active: path === "/" || path.startsWith("/menu") || path.startsWith("/baybayin") && !path.startsWith("/baybayin/booking"), icon: HomeIcon },
+    { href: "/explore", label: "Explore", active: path.startsWith("/explore"), icon: ExploreIcon },
     { href: "/activity", label: "Activity", active: path.startsWith("/activity") || path.startsWith("/order/") || path.startsWith("/baybayin/booking"), icon: ActivityIcon },
     { href: "/messages", label: "Messages", active: path.startsWith("/messages"), icon: MessageIcon, badge: unread },
   ];
   return (
     <nav aria-label="Main" data-testid="bottom-nav" className="fixed inset-x-0 bottom-0 z-40 border-t border-coffee-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid h-16 max-w-lg grid-cols-3">
+      <ul className="mx-auto grid h-16 max-w-lg grid-cols-4">
         {tabs.map((t) => (
           <li key={t.href}>
             <Link
               href={t.href}
               aria-current={t.active ? "page" : undefined}
               data-testid={`nav-${t.label.toLowerCase()}`}
-              className={`relative flex h-full flex-col items-center justify-center gap-0.5 text-xs font-semibold ${t.active ? "text-coffee-800" : "text-coffee-500"}`}
+              className={`relative flex h-full flex-col items-center justify-center gap-0.5 text-xs font-semibold ${t.active ? "text-orange-700" : "text-coffee-500"}`}
             >
               <span className="relative">
                 <t.icon filled={t.active} />
@@ -94,6 +95,14 @@ function HomeIcon({ filled }: { filled: boolean }) {
   return (
     <svg aria-hidden viewBox="0 0 24 24" className={svg} fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round">
       <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+function ExploreIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className={svg} fill="none" stroke="currentColor" strokeWidth={filled ? 2.4 : 1.8} strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }

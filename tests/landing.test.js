@@ -18,7 +18,7 @@ const PASS = "Kape-sa-umaga-1";
 
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
-  sql("update store_settings set cash_after_orders = 0, is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
+  sql("update store_settings set cash_after_orders = 0, is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, welcome_banner_color = null, welcome_banner_text_color = null, home_cafe_color = null, home_cafe_text_color = null, home_bay_color = null, home_bay_text_color = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
   // 4 scooters with photos for the preview card (adds "Preview" scooters only if there are fewer than 4)
   sql("insert into scooters (name, daily_rate, is_active, photo_url) select 'Preview ' || g, 500, true, '/menu/latte.svg' from generate_series(1, greatest(0, 4 - (select count(*) from scooters where is_active))) g");
   sql("update scooters set photo_url = '/menu/latte.svg' where is_active and photo_url is null");
@@ -70,13 +70,28 @@ const PASS = "Kape-sa-umaga-1";
     assert((await g.getByTestId("brand-background").count()) === 0, "the old faded background is not shown behind the landing page");
     await g.getByTestId("shortcuts-signin").waitFor();
     assert(true, "guests get a 'Sign in to track your orders…' shortcut");
-    await g.getByTestId("preview-cards").waitFor();
-    const nScoot = Math.min(4, Number(sql("select count(*) from scooters where is_active and photo_url is not null")));
-    await g.waitForFunction((n) => document.querySelectorAll("[data-testid=scooter-photos] img").length === n || n === 0, nScoot, { timeout: 8000 });
-    assert(nScoot === 4 && (await g.getByTestId("preview-cafe").getByTestId("cafe-photos").locator("img").count()) === 4 && (await g.getByTestId("scooter-photos").locator("img").count()) === 4, "preview cards below show 4 menu photos and 4 scooter photos");
-    const order4 = await g.evaluate(() => { const y = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect().top; return [y("main-actions"), y("preview-cards")]; });
-    assert(order4[0] < order4[1] && (await g.getByTestId("preview-cafe").getAttribute("href")) === "/menu" && (await g.getByTestId("preview-scooter").getAttribute("href")) === "/baybayin", "preview cards sit below the two main cards and open the menu / Baybayin");
-    assert((await g.getByTestId("choose-cafe").innerText()).includes("Open now · until"), "café card shows open now / until");
+    await g.getByTestId("row-food").waitFor();
+    assert((await g.getByTestId("row-food").getByTestId("listing-card").count()) >= 4 && (await g.getByTestId("row-rentals").getByTestId("listing-card").count()) === 4, "hub rows: popular menu items and the 4 scooters as listing cards");
+    const order4 = await g.evaluate(() => { const y = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect().top; return [y("main-actions"), y("plan-tiles"), y("row-food")]; });
+    assert(order4[0] < order4[1] && order4[1] < order4[2], "the two main cards stay right under the header; tiles and listing rows come after");
+    // ---- delivery-app touches: info strip, cravings, scooter price, Padaya orange instead of green
+    const strip = (await g.getByTestId("info-strip").innerText()).replace(/\s+/g, " ");
+    const minFee = Number(sql("select min(fee) from delivery_zones where is_active"));
+    assert(strip.includes(minFee > 0 ? "Delivery from ₱" : "Free delivery") && strip.includes("Ready in ~") && !strip.includes("Open now"), `info strip shows delivery fee and prep time (opening hours stay on the café card) (${strip})`);
+    const minRate = Number(sql("select min(daily_rate) from scooters where is_active"));
+    await g.getByTestId("choose-scooter").getByText(`from ₱${minRate.toLocaleString("en-PH")}/day`).waitFor({ timeout: 8000 });
+    assert(true, "scooter card shows the starting price per day");
+    const greens = await g.evaluate(() => {
+      const isGreen = (c) => { const m = c.match(/\d+/g); if (!m) return false; const [r, gg, b] = m.map(Number); return gg > r + 25 && gg > b + 10; };
+      return [...document.querySelectorAll("main *, nav[aria-label=Main] *")].filter((el) => { const cs = getComputedStyle(el); return el.offsetParent && el.children.length === 0 && el.textContent.trim() && (isGreen(cs.color) || isGreen(cs.backgroundColor)); }).map((el) => el.textContent.trim()).slice(0, 5);
+    });
+    assert(greens.length === 0, `no green text or chips on the landing page (found: ${greens.join(", ")})`);
+    assert((await g.getByTestId("nav-home").evaluate((el) => getComputedStyle(el).color)) === "rgb(194, 65, 12)", "the active footer tab uses Padaya orange");
+    await g.getByTestId("tile-food").click();
+    await g.waitForURL(BASE + "/explore?cat=food");
+    assert(true, "the Food tile opens Explore filtered to food");
+    await g.goto(BASE + "/");
+    await g.getByTestId("main-actions").waitFor();
     assert((await g.locator("[data-testid=info], [data-testid=how-it-works]").count()) === 0 && !(await g.locator("main").innerText()).match(/Opening hours|How it works|Find us|Contact us/), "no Opening hours, How it works, Find us or Contact us on the landing page");
     await g.getByTestId("choose-cafe").click();
     await g.waitForURL(BASE + "/menu");

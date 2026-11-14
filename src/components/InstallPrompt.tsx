@@ -63,7 +63,7 @@ export function InstallPrompt({ appName = "Padaya", pitch = "Open it like an app
     else setMode("none");
   };
 
-  if (done) return <p className="rounded-2xl bg-sage-100 px-4 py-3 text-center text-sm font-semibold text-sage-700">{appName} is on your home screen ✓</p>;
+  if (done) return <p className="rounded-2xl bg-orange-50 px-4 py-3 text-center text-sm font-semibold text-orange-800">{appName} is on your home screen ✓</p>;
   if (mode === "none") return null;
   return (
     <section className="card flex items-start gap-3 p-4" data-testid="install-prompt" aria-label={`Add ${appName} to your home screen`}>

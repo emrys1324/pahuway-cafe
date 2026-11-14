@@ -3,19 +3,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StoreHeader } from "./Header";
 import { HomeShortcuts } from "./HomeShortcuts";
+import { HubSearch, ListingRow } from "./HubParts";
+import { HUB_CATEGORIES, useHubListings } from "@/lib/hub";
 import { HOME_CARD_DEFAULTS, HomeCard } from "./HomeCard";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { Badge } from "@/components/ui";
 import { useFirstName } from "@/lib/use-first-name";
 import { useCart } from "@/lib/cart";
 import { formatClock } from "@/lib/hours";
+import { formatPeso } from "@/lib/format";
 import { useStoreSettings } from "@/lib/store-settings";
 import { brandOf, welcomeTexts } from "@/lib/brands";
 import { getSupabase } from "@/lib/supabase/client";
 import { bookingsOpen, useRentalSettings } from "@/lib/rentals";
 
-type Thumb = { id: string; name: string; photo_url: string };
 
 /** Home (landing page): welcome header, the two main cards, your shortcuts, no extra info cards. */
 export function HomeChooser() {
@@ -26,39 +27,20 @@ export function HomeChooser() {
   const t = welcomeTexts(settings);
   const rs = useRentalSettings();
   const firstName = useFirstName();
-  const [food, setFood] = useState<Thumb[]>([]);
-  const [scooters, setScooters] = useState<Thumb[]>([]);
-
+  const hub = useHubListings();
+  const [minFee, setMinFee] = useState<number | null>(null);
   useEffect(() => {
-    const supabase = getSupabase();
-    supabase
-      .from("menu_items")
-      .select("id, name, photo_url")
-      .eq("is_active", true)
-      .eq("is_sold_out", false)
-      .not("photo_url", "is", null)
-      .order("sort_order")
-      .order("name")
-      .limit(4)
-      .then(({ data }) => setFood((data as Thumb[]) ?? []));
-    supabase
-      .from("scooters")
-      .select("id, name, photo_url")
-      .eq("is_active", true)
-      .not("photo_url", "is", null)
-      .order("sort_order")
-      .order("name")
-      .limit(4)
-      .then(({ data }) => setScooters((data as Thumb[]) ?? []));
+    getSupabase().from("delivery_zones").select("fee").eq("is_active", true).order("fee").limit(1).then(({ data }) => setMinFee(data?.[0] ? Number(data[0].fee) : null));
   }, []);
+  const minRate = hub?.minRate ?? null;
 
-  const hero = settings?.hero_url || food[0]?.photo_url || null;
+  const hero = settings?.hero_url || hub?.food.find((l) => l.photo && !l.badge)?.photo || null;
   const rentOpen = !!rs && bookingsOpen(rs);
 
   const cafeStatus = !settings
     ? null
     : open
-      ? { tone: "text-sage-700", text: `Open now · until ${formatClock(settings.close_time)}` }
+      ? { tone: "text-orange-700", text: `Open now · until ${formatClock(settings.close_time)}` }
       : settings.is_open
         ? { tone: "text-coffee-700", text: `Closed now · opens ${formatClock(settings.open_time)}` }
         : { tone: "text-coffee-700", text: "Closed for now" };
@@ -98,73 +80,83 @@ export function HomeChooser() {
             emoji={bay.emoji}
             title={rentOpen ? "Book a scooter" : "Scooter rentals"}
             text={t.baybayinCard}
-            status={rs ? (rentOpen ? "Book now" : "Coming soon") : bay.name}
+            status={rs ? (rentOpen ? (minRate ? `Book now · from ${formatPeso(minRate)}/day` : "Book now") : "Coming soon") : bay.name}
           />
         </nav>
 
-        <HomeShortcuts />
+        <HubSearch />
 
-        {/* Preview cards with photos */}
-        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Pahuway Cafe and Baybayin" data-testid="preview-cards">
-          <li>
-            <Link href="/menu" data-testid="preview-cafe" className="card group flex h-full flex-col overflow-hidden transition hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-coffee-700">
-              <PhotoStrip photos={food.slice(0, 4)} testId="cafe-photos" />
-              <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={cafe.logo ?? undefined} alt="" className="h-14 w-14 shrink-0 rounded-2xl bg-cream object-cover" />
-                  <span className="font-display text-xl font-bold leading-snug">Order from {cafe.name}</span>
-                </div>
-                {t.cafeCard && <span className="text-coffee-700">{t.cafeCard}</span>}
-                {cafeStatus && <span className={`text-sm font-semibold ${cafeStatus.tone}`}>{cafeStatus.text}</span>}
-                {count > 0 && (
-                  <span className="text-sm font-semibold text-coffee-800">
-                    Continue your order · {count} item{count === 1 ? "" : "s"} in cart
-                  </span>
-                )}
-                <span className="btn-primary mt-auto w-full">{count > 0 ? "Continue order →" : "See the menu →"}</span>
-              </div>
-            </Link>
-          </li>
-          <li>
-            <Link href="/baybayin" data-testid="preview-scooter" className="card group flex h-full flex-col overflow-hidden transition hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-coffee-700">
-              <PhotoStrip photos={scooters} testId="scooter-photos" />
-              <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  {bay.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={bay.logo} alt="" className="h-14 w-14 shrink-0 rounded-2xl bg-white object-contain p-1" />
-                  ) : (
-                    <span aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-3xl">
-                      {bay.emoji}
-                    </span>
-                  )}
-                  <span className="font-display text-xl font-bold leading-snug">Rent a scooter from {bay.name}</span>
-                </div>
-                {rs && <span>{rentOpen ? <Badge tone="green">Book now</Badge> : <Badge tone="amber">Coming soon</Badge>}</span>}
-                {t.baybayinCard && <span className="text-coffee-700">{t.baybayinCard}</span>}
-                <span className="btn-primary mt-auto w-full">{rentOpen ? "Book a scooter →" : "Learn more →"}</span>
-              </div>
-            </Link>
-          </li>
+        {/* Quick facts, like a delivery app's info strip */}
+        <ul className="-mt-1 flex flex-wrap gap-2 text-sm" aria-label="Good to know" data-testid="info-strip">
+          {minFee !== null && (
+            <li className="rounded-full bg-orange-50 px-3 py-1.5 font-semibold text-orange-800 ring-1 ring-orange-200">
+              🛵 {minFee > 0 ? `Delivery from ${formatPeso(minFee)}` : "Free delivery nearby"}
+            </li>
+          )}
+          {settings && (
+            <li className="rounded-full bg-orange-50 px-3 py-1.5 font-semibold text-orange-800 ring-1 ring-orange-200">⏱ Ready in ~{settings.prep_minutes} min</li>
+          )}
         </ul>
 
+        {/* What are you planning? — one tile per category, with a From-price */}
+        <section aria-labelledby="plan-title" data-testid="plan-tiles">
+          <h2 id="plan-title" className="section-title mb-3">
+            What are you planning?
+          </h2>
+          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
+            {HUB_CATEGORIES.map((c) => {
+              const from = c.id === "food" ? hub?.minFood : c.id === "scooters" ? hub?.minRate : null;
+              return (
+                <li key={c.id}>
+                  <Link
+                    href={`/explore?cat=${c.id}`}
+                    data-testid={`tile-${c.id}`}
+                    className={`flex h-full flex-col items-center gap-1 rounded-2xl border p-3 text-center transition hover:-translate-y-0.5 hover:shadow-md ${c.soon ? "border-coffee-100 bg-white/60" : "border-orange-200 bg-white"}`}
+                  >
+                    <span aria-hidden className="text-3xl">
+                      {c.emoji}
+                    </span>
+                    <span className="font-bold text-coffee-900">{c.label}</span>
+                    {c.soon ? (
+                      <span className="rounded-full bg-coffee-100 px-2 py-0.5 text-xs font-bold text-coffee-700">Coming soon</span>
+                    ) : (
+                      from != null && <span className="text-xs font-semibold text-orange-700">From {formatPeso(from)}{c.id === "scooters" ? "/day" : ""}</span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <ListingRow
+          title="Popular on the menu"
+          subtitle={`Coffee, drinks and food from ${cafe.name}`}
+          href="/explore?cat=food"
+          listings={(hub?.food ?? []).filter((l) => l.photo && !l.badge).slice(0, 10)}
+          testId="row-food"
+        />
+        <ListingRow
+          title="Scooters and car rentals"
+          subtitle="The easiest way to get around Tablas"
+          href="/explore?cat=scooters"
+          listings={hub?.scooters ?? []}
+          testId="row-rentals"
+        />
+        <section className="card flex items-center gap-4 p-4" data-testid="stays-teaser">
+          <span aria-hidden className="text-4xl">
+            🏝️
+          </span>
+          <div>
+            <p className="font-bold">Stays and tours are coming soon</p>
+            <p className="text-sm text-coffee-700">Beach houses, rooms and island tours — book them right here in Padaya.</p>
+          </div>
+        </section>
+
+        <HomeShortcuts />
 
         <InstallPrompt />
       </main>
-    </div>
-  );
-}
-
-/** Up to 4 square photos across the top of a service card (hidden when there are none). */
-function PhotoStrip({ photos, testId }: { photos: Thumb[]; testId: string }) {
-  if (photos.length === 0) return null;
-  return (
-    <div data-testid={testId} className="grid h-28 gap-0.5 bg-coffee-100 sm:h-32" style={{ gridTemplateColumns: `repeat(${Math.min(4, photos.length)}, minmax(0, 1fr))` }}>
-      {photos.slice(0, 4).map((p) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={p.id} src={p.photo_url} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
-      ))}
     </div>
   );
 }

@@ -73,7 +73,12 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
       .eq("is_active", true)
       .order("sort_order")
       .order("name")
-      .then(({ data }) => setScooters((data as Scooter[]) ?? []));
+      .then(({ data }) => {
+        setScooters((data as Scooter[]) ?? []);
+        // opened from a listing card (/baybayin?scooter=…): pre-select that scooter
+        const want = new URLSearchParams(window.location.search).get("scooter");
+        if (want && (data ?? []).some((x: { id: string }) => x.id === want)) setPick(want);
+      });
   }, []);
 
   const pickupMs = manilaInstant(start, startTime);

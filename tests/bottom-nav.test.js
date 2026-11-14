@@ -30,7 +30,7 @@ const PASS = "Kape-sa-umaga-1";
     await g.goto(BASE + "/");
     const nav = g.getByTestId("bottom-nav");
     await nav.waitFor();
-    assert((await nav.getByRole("link").allInnerTexts()).map((t) => t.trim()).join("|") === "Home|Activity|Messages", "footer has Home, Activity and Messages tabs");
+    assert((await nav.getByRole("link").allInnerTexts()).map((t) => t.trim()).join("|") === "Home|Explore|Activity|Messages", "footer has Home, Explore, Activity and Messages tabs");
     const box = await nav.boundingBox();
     const vh = g.viewportSize().height;
     assert(box.y + box.height >= vh - 1 && (await g.getByTestId("nav-home").getAttribute("aria-current")) === "page", "footer is fixed to the bottom of the screen; Home is the current tab");

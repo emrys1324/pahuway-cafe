@@ -31,7 +31,8 @@
     "test:signin": "node tests/signin-gate.test.js",
     "test:landing": "node tests/landing.test.js",
     "test:nav": "node tests/bottom-nav.test.js",
-    "test:checkout": "node tests/checkout-chat.test.js"
+    "test:checkout": "node tests/checkout-chat.test.js",
+    "test:hub": "node tests/hub.test.js"
   },
   "dependencies": {
     "@capacitor/android": "8.6.0",
