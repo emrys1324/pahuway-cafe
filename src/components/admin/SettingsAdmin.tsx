@@ -6,7 +6,7 @@ import { uploadPublicImage, uploadSiteIcons } from "@/lib/upload";
 import { brandOf, DEFAULTS, DEFAULT_LOGO, welcomeTexts, type Brand } from "@/lib/brands";
 import { useStoreSettings } from "@/lib/store-settings";
 import { BackgroundLayer } from "@/components/BrandBackground";
-import { DEFAULT_STAFF_HEADER, headerTheme, isHex } from "@/lib/color";
+import { contrast, DEFAULT_STAFF_HEADER, headerTheme, isHex } from "@/lib/color";
 import { HOME_CARD_DEFAULTS, HomeCard } from "@/components/customer/HomeCard";
 import { WelcomeBanner } from "@/components/customer/WelcomeBanner";
 import type { StoreSettings } from "@/lib/types";
@@ -84,6 +84,9 @@ export function SettingsAdmin() {
         cash_after_orders: Math.min(50, Math.max(0, Math.round(Number(s.cash_after_orders ?? 3)) || 0)),
         hero_url: s.hero_url || null,
         welcome_banner_color: isHex(s.welcome_banner_color) ? s.welcome_banner_color : null,
+        welcome_banner_text_color: isHex(s.welcome_banner_text_color) ? s.welcome_banner_text_color : null,
+        home_cafe_text_color: isHex(s.home_cafe_text_color) ? s.home_cafe_text_color : null,
+        home_bay_text_color: isHex(s.home_bay_text_color) ? s.home_bay_text_color : null,
         home_cafe_color: isHex(s.home_cafe_color) ? s.home_cafe_color : null,
         home_cafe_logo_url: s.home_cafe_logo_url || null,
         home_cafe_bg_url: s.home_cafe_bg_url || null,
@@ -415,9 +418,17 @@ function BrandingSection({
             <div className="space-y-3 border-t border-coffee-100 pt-5" data-testid="landing-settings">
               <p className="font-bold">Welcome banner</p>
               <div data-testid="banner-preview">
-                <WelcomeBanner color={s.welcome_banner_color} photo={s.hero_url} title={welcomeTexts(s).title} subtitle={welcomeTexts(s).subtitle} />
+                <WelcomeBanner color={s.welcome_banner_color} textColor={s.welcome_banner_text_color} photo={s.hero_url} title={welcomeTexts(s).title} subtitle={welcomeTexts(s).subtitle} />
               </div>
               <WelcomeBannerColour value={s.welcome_banner_color ?? null} onChange={(v) => set("welcome_banner_color", v)} />
+              <TextColourField
+                id="welcome-banner-text-color"
+                label="Welcome banner text colour"
+                value={s.welcome_banner_text_color ?? null}
+                background={isHex(s.welcome_banner_color) ? s.welcome_banner_color : null}
+                onPhoto={!isHex(s.welcome_banner_color)}
+                onChange={(v) => set("welcome_banner_text_color", v)}
+              />
               <p className="font-semibold">Welcome page photo{isHex(s.welcome_banner_color) ? " (not shown while a banner colour is set)" : ""}</p>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-coffee-100 sm:w-48">
@@ -445,18 +456,26 @@ function BrandingSection({
             <div className="space-y-4 border-t border-coffee-100 pt-5" data-testid="home-card-settings">
               <p className="font-bold">Home page cards</p>
               <div className="grid grid-cols-2 gap-3" data-testid="home-card-preview">
-                <HomeCard color={s.home_cafe_color} fallbackColor={HOME_CARD_DEFAULTS.cafe} bgUrl={s.home_cafe_bg_url} logo={s.home_cafe_logo_url || cafe.logo} emoji="☕" title="Order food & drinks" text={welcomeTexts(s).cafeCard} status="Open now" />
-                <HomeCard color={s.home_bay_color} fallbackColor={HOME_CARD_DEFAULTS.bay} bgUrl={s.home_bay_bg_url} logo={s.home_bay_logo_url || bay.logo} emoji={bay.emoji} title="Book a scooter" text={welcomeTexts(s).baybayinCard} status="Book now" />
+                <HomeCard color={s.home_cafe_color} textColor={s.home_cafe_text_color} fallbackColor={HOME_CARD_DEFAULTS.cafe} bgUrl={s.home_cafe_bg_url} logo={s.home_cafe_logo_url || cafe.logo} emoji="☕" title="Order food & drinks" text={welcomeTexts(s).cafeCard} status="Open now" />
+                <HomeCard color={s.home_bay_color} textColor={s.home_bay_text_color} fallbackColor={HOME_CARD_DEFAULTS.bay} bgUrl={s.home_bay_bg_url} logo={s.home_bay_logo_url || bay.logo} emoji={bay.emoji} title="Book a scooter" text={welcomeTexts(s).baybayinCard} status="Book now" />
               </div>
               {(
                 [
-                  { key: "cafe", name: "“Order food & drinks” card", color: "home_cafe_color", logo: "home_cafe_logo_url", bg: "home_cafe_bg_url", fallback: HOME_CARD_DEFAULTS.cafe, brandLogo: cafe.logo, emoji: "☕" },
-                  { key: "bay", name: "“Book a scooter” card", color: "home_bay_color", logo: "home_bay_logo_url", bg: "home_bay_bg_url", fallback: HOME_CARD_DEFAULTS.bay, brandLogo: bay.logo, emoji: bay.emoji },
+                  { key: "cafe", name: "“Order food & drinks” card", color: "home_cafe_color", text: "home_cafe_text_color", logo: "home_cafe_logo_url", bg: "home_cafe_bg_url", fallback: HOME_CARD_DEFAULTS.cafe, brandLogo: cafe.logo, emoji: "☕" },
+                  { key: "bay", name: "“Book a scooter” card", color: "home_bay_color", text: "home_bay_text_color", logo: "home_bay_logo_url", bg: "home_bay_bg_url", fallback: HOME_CARD_DEFAULTS.bay, brandLogo: bay.logo, emoji: bay.emoji },
                 ] as const
               ).map((c) => (
                 <div key={c.key} className="space-y-3 rounded-2xl border border-coffee-100 p-4" data-testid={`home-card-${c.key}`}>
                   <p className="font-semibold">{c.name}</p>
                   <ColorField id={`home-${c.key}-color`} label="Background colour" value={s[c.color] ?? null} fallback={c.fallback} onChange={(v) => set(c.color, v)} />
+                  <TextColourField
+                    id={`home-${c.key}-text-color`}
+                    label="Text colour"
+                    value={s[c.text] ?? null}
+                    background={isHex(s[c.color]) ? (s[c.color] as string) : c.fallback}
+                    onPhoto={!!s[c.bg]}
+                    onChange={(v) => set(c.text, v)}
+                  />
                   <LogoField
                     label="Logo"
                     preview={s[c.logo] || c.brandLogo}
@@ -895,6 +914,28 @@ function WelcomeBannerColour({ value, onChange }: { value: string | null; onChan
       </label>
       {on && <ColorField id="welcome-banner-color" label="Welcome banner colour" value={value} fallback="#c2410c" onChange={(v) => onChange(v ?? "#c2410c")} />}
       <p className="hint">Shows your exact colour with no darkening. The text switches between white and dark automatically so it stays readable. Untick to show the welcome photo again.</p>
+    </div>
+  );
+}
+
+/** Text colour for a banner/card: Automatic (white or dark, whichever reads better) or a chosen colour, with a readability check. */
+function TextColourField({ id, label, value, background, onPhoto, onChange }: { id: string; label: string; value: string | null; background: string | null; onPhoto: boolean; onChange: (v: string | null) => void }) {
+  const auto = onPhoto || !background ? "#ffffff" : headerTheme(background).fg;
+  const chosen = isHex(value) ? value : null;
+  const ratio = chosen && background && !onPhoto ? contrast(chosen, background) : null;
+  return (
+    <div className="space-y-2" data-testid={`${id}-field`}>
+      <label className="flex items-center gap-3 text-sm font-semibold">
+        <input type="checkbox" className="h-5 w-5 accent-coffee-700" checked={!!chosen} onChange={(e) => onChange(e.target.checked ? auto : null)} aria-label={`${label}: choose my own`} />
+        {label}: {chosen ? "my own colour" : "Automatic"}
+      </label>
+      {chosen && <ColorField id={id} label={label} value={chosen} fallback={auto} onChange={(v) => onChange(v ?? auto)} />}
+      {ratio !== null && ratio < 4.5 && (
+        <p className="text-sm font-semibold text-amber-800" role="status" data-testid={`${id}-warning`}>
+          ⚠ Hard to read on this background ({ratio.toFixed(1)}:1). Aim for 4.5:1 or more, or switch back to Automatic.
+        </p>
+      )}
+      {!chosen && <p className="hint">Automatic picks white or dark, whichever reads better on the background{onPhoto ? " (white on photos)" : ""}.</p>}
     </div>
   );
 }

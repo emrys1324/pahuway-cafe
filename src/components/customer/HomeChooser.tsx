@@ -69,7 +69,7 @@ export function HomeChooser() {
       <StoreHeader settings={settings} open={open} brand="site" />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:py-8">
         {/* Welcome banner: exact colour if one is set in Settings, else the welcome photo */}
-        <WelcomeBanner color={settings?.welcome_banner_color} photo={hero} title={firstName ? `Welcome, ${firstName}!` : t.title} subtitle={t.subtitle} />
+        <WelcomeBanner color={settings?.welcome_banner_color} textColor={settings?.welcome_banner_text_color} photo={hero} title={firstName ? `Welcome, ${firstName}!` : t.title} subtitle={t.subtitle} />
 
         {/* The two main actions, right under the welcome header */}
         <nav aria-label="What would you like to do?" className="grid grid-cols-2 gap-3 sm:gap-4" data-testid="main-actions">
@@ -77,6 +77,7 @@ export function HomeChooser() {
             href="/menu"
             testId="choose-cafe"
             color={settings?.home_cafe_color}
+            textColor={settings?.home_cafe_text_color}
             fallbackColor={HOME_CARD_DEFAULTS.cafe}
             bgUrl={settings?.home_cafe_bg_url}
             logo={settings?.home_cafe_logo_url || cafe.logo}
@@ -89,6 +90,7 @@ export function HomeChooser() {
             href="/baybayin"
             testId="choose-scooter"
             color={settings?.home_bay_color}
+            textColor={settings?.home_bay_text_color}
             fallbackColor={HOME_CARD_DEFAULTS.bay}
             bgUrl={settings?.home_bay_bg_url}
             logo={settings?.home_bay_logo_url || bay.logo}

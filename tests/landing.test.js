@@ -128,6 +128,31 @@ const PASS = "Kape-sa-umaga-1";
     await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(67, 44, 29)", null, { timeout: 8000 });
     assert((await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 0, "Home: default café brown and no scooter photo again");
 
+    // ---- text colour for the cards and the banner (Automatic by default; custom with a readability warning)
+    const cafeText = admin.getByTestId("home-cafe-text-color-field");
+    await cafeText.getByRole("checkbox", { name: "Text colour: choose my own" }).check();
+    await cafeText.getByRole("button", { name: "Use colour #2e1e14" }).click();
+    await cafeText.getByTestId("home-cafe-text-color-warning").waitFor();
+    assert((await cafeText.getByTestId("home-cafe-text-color-warning").innerText()).includes("Hard to read"), "a dark text colour on the brown café card shows a 'hard to read' warning");
+    await cafeText.locator("#home-cafe-text-color").fill("#f6c453");
+    await admin.waitForFunction(() => !document.querySelector("[data-testid=home-cafe-text-color-warning]"));
+    const prevText = await admin.getByTestId("home-card-preview").locator("> *").first().evaluate((el) => getComputedStyle(el).color);
+    assert(prevText === "rgb(246, 196, 83)", "preview: the café card text turns the chosen yellow (warning gone: readable)");
+    const banText = admin.getByTestId("welcome-banner-text-color-field");
+    await banText.getByRole("checkbox", { name: "Welcome banner text colour: choose my own" }).check();
+    await banText.locator("#welcome-banner-text-color").fill("#fde68a");
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select home_cafe_text_color || '|' || welcome_banner_text_color from store_settings") === "#f6c453|#fde68a", "text colours saved");
+    await g.goto(BASE + "/");
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).color === "rgb(246, 196, 83)", null, { timeout: 8000 });
+    assert((await g.getByTestId("welcome-title").evaluate((el) => getComputedStyle(el).color)) === "rgb(253, 230, 138)", "Home: the café card and the welcome banner use the chosen text colours");
+    await cafeText.getByRole("checkbox", { name: "Text colour: choose my own" }).uncheck();
+    await banText.getByRole("checkbox", { name: "Welcome banner text colour: choose my own" }).uncheck();
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select coalesce(home_cafe_text_color, '') || '|' || coalesce(welcome_banner_text_color, '') from store_settings") === "|", "unticking returns both to Automatic");
+
     // ---- Welcome banner colour: exact colour, no darkening, readable text
     await admin.getByRole("checkbox", { name: "Use a banner colour instead of a photo" }).check();
     await admin.getByTestId("banner-colour").locator("#welcome-banner-color").fill("#ed967b");
@@ -190,7 +215,7 @@ const PASS = "Kape-sa-umaga-1";
     console.log("ALL LANDING PAGE CHECKS PASSED");
   } finally {
     sql("update menu_items set is_sold_out = false where name = 'Americano'");
-    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null, welcome_banner_color = null");
+    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null, welcome_banner_color = null, welcome_banner_text_color = null, home_cafe_text_color = null, home_bay_text_color = null");
     await browser.close();
   }
 })().catch((e) => {
