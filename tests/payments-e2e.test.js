@@ -13,7 +13,7 @@ const assert = (c, m) => {
 };
 
 (async () => {
-  require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", "update store_settings set require_account = false"]); // guest orders/bookings (the sign-in gate has its own test)
+  require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", "update store_settings set require_account = false, cash_after_orders = 0"]); // guest orders/bookings (the sign-in gate has its own test)
   const mock = await startMockHitpay({ port: 4010, salt: "salt_e2e", apiKey: "hp_e2e" });
   const browser = await chromium.launch();
   const adminCtx = await browser.newContext({ ...devices["iPad (gen 7) landscape"] });
@@ -56,6 +56,7 @@ const assert = (c, m) => {
   await cust.getByRole("button", { name: /^Add · / }).click();
   await cust.getByRole("button", { name: /View cart/ }).click();
   await cust.getByRole("link", { name: "Checkout" }).click();
+  await cust.getByRole("radio", { name: /Pickup/ }).click(); // Delivery is the default now
   await cust.fill("#name", "Lea Online");
   await cust.fill("#phone", "09171230000");
   await cust.getByRole("radio", { name: /Pay online/ }).click();
@@ -106,6 +107,7 @@ const assert = (c, m) => {
   await cust.getByRole("button", { name: /^Add · / }).click();
   await cust.getByRole("button", { name: /View cart/ }).click();
   await cust.getByRole("link", { name: "Checkout" }).click();
+  await cust.getByRole("radio", { name: /Pickup/ }).click();
   await cust.getByRole("radio", { name: /Pay online/ }).click();
   await cust.getByRole("button", { name: /Continue to payment/ }).click();
   await cust.waitForURL(/checkout\/pr_2/);
@@ -139,6 +141,7 @@ const assert = (c, m) => {
     await cust.getByRole("button", { name: /^Add · / }).click();
     await cust.getByRole("button", { name: /View cart/ }).click();
     await cust.getByRole("link", { name: "Checkout" }).click();
+    await cust.getByRole("radio", { name: /Pickup/ }).click();
     await cust.getByRole("radio", { name: /Pay online/ }).click();
     await cust.getByRole("button", { name: /Continue to payment/ }).click();
     await cust.waitForURL(new RegExp(`checkout/${prId}`));

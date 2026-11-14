@@ -1,6 +1,6 @@
 -- Scenario tests for 0008_team_permissions.sql: per-person permissions, admins, riders, switched-off logins.
 \set ON_ERROR_STOP 1
-update store_settings set require_account = false;  -- guest scenarios; the sign-in rule is tested on its own
+update store_settings set require_account = false, cash_after_orders = 0;  -- guest scenarios; the sign-in and cash rules are tested on their own
 update store_settings set open_time = '00:00', close_time = '00:00', is_open = true;
 
 create or replace function pg_temp.expect_error(sql text, needle text) returns void language plpgsql as $$

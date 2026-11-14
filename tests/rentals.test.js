@@ -68,7 +68,7 @@ async function payGcash(page) {
 }
 
 (async () => {
-  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
+  sql("update store_settings set require_account = false, cash_after_orders = 0"); // guest orders/bookings (the sign-in gate has its own test)
   sql("delete from rental_bookings; delete from scooters; update rental_settings set bookings_enabled = false, terms = null, deposit_percent = 30, security_deposit = 0, security_deposit_note = null, delivery_fee = 0, pickup_note = null, max_days = 30, messenger_url = null, open_time = '08:00', close_time = '22:00';");
   sql("update store_settings set gcash_name = 'Pahuway Cafe', gcash_number = '0917 555 0000' where id = 1;");
   const sms = await startMockSemaphore({ port: 4020, apiKey: "sm_test" });

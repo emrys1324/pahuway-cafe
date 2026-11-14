@@ -21,8 +21,8 @@ import { isLatLng, toLatLng, type LatLng } from "@/lib/maps";
 const GUEST_KEY = "pahuway-guest-details";
 
 const TYPES: { value: OrderType; label: string; icon: string; hint: string }[] = [
-  { value: "pickup", label: "Pickup", icon: "🛍️", hint: "Grab it at the counter" },
   { value: "delivery", label: "Delivery", icon: "🛵", hint: "To your door" },
+  { value: "pickup", label: "Pickup", icon: "🛍️", hint: "Grab it at the counter" },
   { value: "dine_in", label: "Dine-in", icon: "☕", hint: "Ready when you arrive" },
 ];
 
@@ -50,7 +50,7 @@ export function CheckoutScreen() {
   const { data: menu } = useMenu();
   const [zones, setZones] = useState<Zone[]>([]);
 
-  const [orderType, setOrderType] = useState<OrderType>("pickup");
+  const [orderType, setOrderType] = useState<OrderType>("delivery");
   const [when, setWhen] = useState<"asap" | "later">("asap");
   const [slot, setSlot] = useState("");
   const [name, setName] = useState("");
@@ -69,6 +69,7 @@ export function CheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
+  const [completedOrders, setCompletedOrders] = useState(0);
 
   // zones + prefill (signed-in profile first, else last guest details on this phone)
   useEffect(() => {
@@ -104,6 +105,9 @@ export function CheckoutScreen() {
         const savedPin = toLatLng(p.saved_lat, p.saved_lng);
         if (savedPin) setPin(savedPin);
       }
+      // cash unlocks after N completed orders
+      const { count: done } = await supabase.from("orders").select("id", { count: "exact", head: true }).eq("customer_id", auth.user.id).eq("status", "completed");
+      setCompletedOrders(done ?? 0);
     })();
   }, []);
 
@@ -132,6 +136,7 @@ export function CheckoutScreen() {
 
   if (!ready || !settings) return <PageLoader />;
   if (payment === "online" && !settings.online_payments_enabled) setTimeout(() => setPayment("cash"), 0);
+  if (payment === "cash" && signedIn !== undefined && (settings.cash_after_orders ?? 3) > 0 && !(signedIn && completedOrders >= (settings.cash_after_orders ?? 3))) setTimeout(() => setPayment("gcash"), 0);
 
   if (lines.length === 0 && !done) {
     return (
@@ -255,6 +260,11 @@ export function CheckoutScreen() {
   if (done) return <PageLoader />;
 
   const cashLabel = orderType === "delivery" ? "Cash on delivery" : orderType === "pickup" ? "Cash on pickup" : "Pay at the counter";
+  const cashAfter = settings.cash_after_orders ?? 3;
+  const cashAllowed = cashAfter === 0 || (!!signedIn && completedOrders >= cashAfter);
+  const cashLockedNote = signedIn
+    ? `Unlocks after ${cashAfter} completed orders (${Math.min(completedOrders, cashAfter)} of ${cashAfter} so far)`
+    : `Sign in — unlocks after ${cashAfter} completed orders`;
 
   return (
     <div className="min-h-screen pb-36">
@@ -383,6 +393,7 @@ export function CheckoutScreen() {
                 </select>
                 {errors.zone ? <p className="error-text">{errors.zone}</p> : <p className="hint">Don&apos;t see your area? We don&apos;t deliver there yet — try pickup.</p>}
               </div>
+              <MapPicker value={pin} onChange={sync.onPinChange} center={sync.center} note={sync.note} />
               <div data-error={!!errors.street}>
                 <label className="label" htmlFor="street">
                   House no. / Street / Purok
@@ -396,7 +407,6 @@ export function CheckoutScreen() {
                 </label>
                 <input id="landmark" className="input" value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={160} placeholder="Blue gate beside the chapel" />
               </div>
-              <MapPicker value={pin} onChange={sync.onPinChange} center={sync.center} note={sync.note} />
               <div>
                 <label className="label" htmlFor="rider-notes">
                   Notes to rider <span className="font-normal text-coffee-600">(optional)</span>
@@ -414,7 +424,7 @@ export function CheckoutScreen() {
             {(
               [
                 ...(settings.online_payments_enabled ? [{ v: "online", title: "Pay online", sub: "GCash or QR Ph · confirmed instantly" } as const] : []),
-                { v: "cash", title: cashLabel, sub: "Pay when you get your order" } as const,
+                { v: "cash", title: cashLabel, sub: cashAllowed ? "Pay when you get your order" : cashLockedNote, locked: !cashAllowed } as const,
                 {
                   v: "gcash",
                   title: settings.online_payments_enabled ? "GCash (send manually)" : "GCash",
@@ -427,10 +437,16 @@ export function CheckoutScreen() {
                 key={p.v}
                 role="radio"
                 aria-checked={payment === p.v}
+                aria-disabled={"locked" in p && p.locked ? true : undefined}
+                disabled={"locked" in p && p.locked}
+                data-testid={`pay-${p.v}`}
                 onClick={() => setPayment(p.v)}
-                className={`rounded-2xl border-2 px-4 py-3 text-left ${payment === p.v ? "border-coffee-700 bg-coffee-50" : "border-coffee-100 bg-white"}`}
+                className={`rounded-2xl border-2 px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${payment === p.v ? "border-coffee-700 bg-coffee-50" : "border-coffee-100 bg-white"}`}
               >
-                <span className="block font-bold">{p.title}</span>
+                <span className="block font-bold">
+                  {"locked" in p && p.locked && <span aria-hidden>🔒 </span>}
+                  {p.title}
+                </span>
                 <span className="block text-sm text-coffee-600">{p.sub}</span>
               </button>
             ))}

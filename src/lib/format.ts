@@ -37,7 +37,7 @@ export function normalizePhone(input: string): string | null {
 /** Strip the internal error code prefix from database errors ("STORE_CLOSED: …"). */
 export function friendlyError(message: string | undefined): string {
   if (!message) return "Something went wrong. Please try again.";
-  const m = message.match(/^(STORE_CLOSED|INVALID|ITEM_UNAVAILABLE|MIN_ORDER|CLOSED|UNAVAILABLE|SIGN_IN):\s*(.*)$/s);
+  const m = message.match(/^(STORE_CLOSED|INVALID|ITEM_UNAVAILABLE|MIN_ORDER|CLOSED|UNAVAILABLE|SIGN_IN|CASH_LOCKED):\s*(.*)$/s);
   if (m) return m[2];
   if (/fetch|network/i.test(message)) return "No connection. Please check your internet and try again.";
   return message;

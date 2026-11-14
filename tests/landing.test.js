@@ -18,7 +18,7 @@ const PASS = "Kape-sa-umaga-1";
 
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
-  sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
+  sql("update store_settings set cash_after_orders = 0, is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
   // 4 scooters with photos for the preview card (adds "Preview" scooters only if there are fewer than 4)
   sql("insert into scooters (name, daily_rate, is_active, photo_url) select 'Preview ' || g, 500, true, '/menu/latte.svg' from generate_series(1, greatest(0, 4 - (select count(*) from scooters where is_active))) g");
   sql("update scooters set photo_url = '/menu/latte.svg' where is_active and photo_url is null");

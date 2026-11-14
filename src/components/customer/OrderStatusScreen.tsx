@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Logo, useCustomerHeaderStyle } from "./Header";
 import { GcashFallback } from "./GcashFallback";
+import { OrderChat } from "@/components/OrderChat";
 import { Alert, Badge, PageLoader, Spinner } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { enableOrderPush, isNativeApp, pushAvailable, type PushResult } from "@/lib/native";
@@ -76,6 +77,17 @@ function Inner({ token }: { token: string }) {
   const [copied, setCopied] = useState(false);
   const [native, setNative] = useState(false);
   const [push, setPush] = useState<PushResult | "asking" | null>(null);
+  // chat with the rider: only the signed-in owner of a delivery order can see the order id (row-level security)
+  const [chat, setChat] = useState<{ id: string; riderAssigned: boolean } | null>(null);
+  useEffect(() => {
+    if (!order || order.order_type !== "delivery") return;
+    getSupabase()
+      .from("orders")
+      .select("id, rider_id")
+      .eq("public_token", token)
+      .maybeSingle()
+      .then(({ data }) => setChat(data ? { id: data.id, riderAssigned: !!data.rider_id } : null));
+  }, [token, order?.order_type, order?.status, order?.rider_name]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isNativeApp()) return;
     pushAvailable().then((ok) => {
@@ -275,6 +287,20 @@ function Inner({ token }: { token: string }) {
             </ol>
           )}
         </section>
+
+        {chat && (
+          <OrderChat
+            orderId={chat.id}
+            me="customer"
+            otherName={order.rider_name}
+            canSend={chat.riderAssigned && order.status !== "completed" && order.status !== "cancelled"}
+            closedNote={
+              order.status === "completed" || order.status === "cancelled"
+                ? "This order is closed, so the chat is closed too."
+                : "You can chat with your rider here once one is assigned to your order."
+            }
+          />
+        )}
 
         <section className="card p-5">
           <h2 className="section-title mb-2">Your order</h2>

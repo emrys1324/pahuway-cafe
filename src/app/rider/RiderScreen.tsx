@@ -9,6 +9,7 @@ import { formatTime, storeNow } from "@/lib/hours";
 import { playChime, unlockAudio } from "@/lib/sound";
 import type { Order } from "@/lib/types";
 import { MapView } from "@/components/map/MapView";
+import { OrderChat } from "@/components/OrderChat";
 import { googleMapsDirections, toLatLng, wazeDirections } from "@/lib/maps";
 
 export function RiderScreen() {
@@ -171,6 +172,11 @@ export function RiderScreen() {
                 <p className="text-sm text-coffee-700">
                   {(o.order_items ?? []).reduce((s, i) => s + i.quantity, 0)} items · {o.scheduled_for ? `Deliver at ${formatTime(o.scheduled_for)}` : "ASAP"}
                 </p>
+                {o.customer_id ? (
+                  <RiderChatToggle orderId={o.id} name={o.customer_name} />
+                ) : (
+                  <p className="text-xs text-coffee-600">Guest order — no in-app chat. Call the customer instead.</p>
+                )}
                 {o.status === "out_for_delivery" ? (
                   <button className="btn-sage w-full py-4 text-lg" disabled={!!busy} onClick={() => act(o, "delivered")}>
                     {busy === o.id + "delivered" ? <Spinner /> : "✓ Delivered"}
@@ -209,5 +215,22 @@ export function RiderScreen() {
         )}
       </main>
     </div>
+  );
+}
+
+/** "Chat with customer" — opens the order chat inside the delivery card. */
+function RiderChatToggle({ orderId, name }: { orderId: string; name: string }) {
+  const [open, setOpen] = useState(false);
+  return open ? (
+    <div className="space-y-2">
+      <OrderChat orderId={orderId} me="rider" canSend otherName={name.split(" ")[0]} />
+      <button type="button" className="btn-ghost btn-sm w-full" onClick={() => setOpen(false)}>
+        Hide chat
+      </button>
+    </div>
+  ) : (
+    <button type="button" className="btn-secondary w-full" onClick={() => setOpen(true)} data-testid="rider-open-chat">
+      💬 Chat with {name.split(" ")[0]}
+    </button>
   );
 }

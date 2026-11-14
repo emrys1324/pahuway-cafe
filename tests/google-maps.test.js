@@ -41,7 +41,7 @@ async function toCheckout(page) {
 const gm = (page) => page.evaluate(() => ({ calls: window.__gm.calls, center: window.__gm.maps.at(-1).center, url: window.__gm.url, pins: window.__gm.markers.filter((m) => m.map).map((m) => m.position) }));
 
 (async () => {
-  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
+  sql("update store_settings set require_account = false, cash_after_orders = 0"); // guest orders/bookings (the sign-in gate has its own test)
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59'");
   sql("delete from order_items; delete from orders;");
   const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });

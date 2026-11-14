@@ -1,7 +1,7 @@
 -- Scenario tests for the database rules. Run against a scratch DB after the
 -- migration + seed (see README "Testing the database rules").
 \set ON_ERROR_STOP 1
-update store_settings set require_account = false;  -- guest scenarios; the sign-in rule is tested on its own
+update store_settings set require_account = false, cash_after_orders = 0;  -- guest scenarios; the sign-in and cash rules are tested on their own
 grant all on all tables in schema public to anon, authenticated;
 grant all on all sequences in schema public to anon, authenticated;
 grant all on storage.objects to anon, authenticated;
@@ -163,7 +163,7 @@ select set_config('request.jwt.claim.sub', '', false);
 set role anon;
 select pg_temp.expect_error($q$select place_order('{"customer_name":"Al","customer_phone":"09171234567","order_type":"pickup","payment_method":"cash"}', '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":1}]')$q$, 'SIGN_IN');
 reset role;
-update store_settings set require_account = false;
+update store_settings set require_account = false, cash_after_orders = 0;
 
 -- customer inbox (Messages): automatic updates on the customer's own orders, private to them
 do $$
@@ -200,3 +200,45 @@ set role anon;
 select case when count(*) = 0 then 'ok guests see no messages' else 'FAIL anon sees messages' end from customer_messages;
 reset role;
 select 'ALL MESSAGE SCENARIOS PASSED';
+
+-- cash only after 3 completed orders; order chat between the customer and the assigned rider
+update store_settings set cash_after_orders = 3;
+insert into auth.users (id, email) values ('a0000000-0000-0000-0000-000000000009', 'newbie@test');
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select pg_temp.expect_error($q$select place_order(jsonb_build_object('customer_name','Nia','customer_phone','09170000009','order_type','delivery','zone_id',(select id from delivery_zones where name='Poblacion'),'street','Rizal St','payment_method','cash'), '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":4}]')$q$, 'CASH_LOCKED');
+create temp table chat_order on commit preserve rows as
+  select (place_order(jsonb_build_object('customer_name','Nia','customer_phone','09170000009','order_type','delivery','zone_id',(select id from delivery_zones where name='Poblacion'),'street','Rizal St','payment_method','gcash','payment_proof_path','proofs/x.jpg'), '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":4}]')->>'order_number') as no;
+reset role;
+-- three completed orders unlock cash
+insert into orders (order_number, customer_id, customer_name, customer_phone, order_type, subtotal, delivery_fee, total, payment_method, status)
+  select 'PH-T' || g, 'a0000000-0000-0000-0000-000000000009', 'Nia', '09170000009', 'pickup', 100, 0, 100, 'gcash', 'completed' from generate_series(1, 3) g;
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select case when (place_order('{"customer_name":"Nia","customer_phone":"09170000009","order_type":"pickup","payment_method":"cash"}', '[{"menu_item_id":"30000000-0000-0000-0000-000000000013","quantity":1}]')->>'order_number') is not null
+  then 'ok cash is refused for a new customer and allowed after 3 completed orders' else 'FAIL cash after 3' end;
+-- chat: closed until a rider is assigned
+select pg_temp.expect_error($q$select send_order_message((select id from orders where order_number = (select no from chat_order)), 'hello?')$q$, 'once a rider is assigned');
+reset role;
+update orders set rider_id = 'b0000000-0000-0000-0000-000000000001', status = 'out_for_delivery' where order_number = (select no from chat_order);
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select send_order_message((select id from orders where order_number = (select no from chat_order)), 'Blue gate po');
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000002', false);  -- rider Jun (assigned)
+select send_order_message((select id from orders where order_number = (select no from chat_order)), 'Malapit na po!');
+select case when count(*) = 2 then 'ok assigned rider sees the chat' else 'FAIL rider sees ' || count(*) end from order_messages;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000003', false);  -- rider Ana (not assigned)
+select case when count(*) = 0 then 'ok other riders cannot read it' else 'FAIL other rider sees chat' end from order_messages;
+reset role; create temp table chat_id on commit preserve rows as select id from orders where order_number = (select no from chat_order); grant select on chat_id to authenticated;
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000003', false);
+select pg_temp.expect_error($q$select send_order_message((select id from chat_id), 'hi')$q$, 'can''t message');
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000004', false);  -- another customer
+select case when count(*) = 0 then 'ok other customers cannot read it' else 'FAIL other customer sees chat' end from order_messages;
+select pg_temp.expect_error($q$insert into order_messages (order_id, sender, body) select id, 'customer', 'spoof' from orders limit 1$q$, 'row-level security');
+select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select case when string_agg(sender || ':' || body, '|' order by created_at) = 'customer:Blue gate po|rider:Malapit na po!' then 'ok customer sees both messages in order' else 'FAIL chat ' || string_agg(body, '|') end from order_messages;
+select case when count(*) = 1 then 'ok the rider''s message also lands in the customer''s Messages inbox' else 'FAIL inbox ' || count(*) end from customer_messages where title like 'Rider · order %';
+reset role;
+update orders set status = 'completed' where order_number = (select no from chat_order);
+set role authenticated; select set_config('request.jwt.claim.sub', 'a0000000-0000-0000-0000-000000000009', false);
+select pg_temp.expect_error($q$select send_order_message((select id from orders where order_number = (select no from chat_order)), 'thanks')$q$, 'chat is closed');
+reset role;
+update store_settings set cash_after_orders = 0;
+select 'ALL CASH & CHAT SCENARIOS PASSED';

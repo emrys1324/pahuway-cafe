@@ -21,7 +21,7 @@ async function cartAndCheckout(page) {
 
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
-  sql("update store_settings set require_account = true, is_open = true, open_time = '00:00', close_time = '23:59'");
+  sql("update store_settings set require_account = true, cash_after_orders = 0, is_open = true, open_time = '00:00', close_time = '23:59'");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.')");
   sql("insert into scooters (name, daily_rate, is_active) select 'Gate Scooter', 500, true where not exists (select 1 from scooters where is_active)");
   const browser = await chromium.launch();
@@ -63,7 +63,9 @@ async function cartAndCheckout(page) {
     await guest.getByRole("button", { name: "Create account" }).click();
     await guest.waitForURL(BASE + "/checkout", { timeout: 15000 });
     await guest.locator("#name").waitFor();
+    await guest.waitForFunction(() => document.querySelector("#name").value === "Gate Tester", null, { timeout: 8000 }).catch(() => null);
     assert((await guest.locator("#name").inputValue()) === "Gate Tester" && (await guest.locator("#phone").inputValue()) === PHONE, "after creating an account the customer is back at checkout with name and mobile filled in");
+    await guest.getByRole("radio", { name: /Pickup/ }).click(); // Delivery is the default now
     await guest.getByRole("button", { name: /Place order/ }).click();
     await guest.waitForURL(/\/order\/[0-9a-f-]{36}\?new=1/);
     assert(
@@ -134,14 +136,14 @@ async function cartAndCheckout(page) {
     assert(new URL(off.url()).host === new URL(BASE).host, "a return address on another site is ignored");
 
     // ---- switch off → guests order again
-    sql("update store_settings set require_account = false");
+    sql("update store_settings set require_account = false, cash_after_orders = 0");
     const guest2 = await (await browser.newContext(devices["iPhone 13"])).newPage();
     await cartAndCheckout(guest2);
     await guest2.locator("#name").waitFor();
     assert((await guest2.getByTestId("signin-gate").count()) === 0, "with the setting off, guests can order without an account");
     console.log("ALL SIGN-IN GATE CHECKS PASSED");
   } finally {
-    sql("update store_settings set require_account = false");
+    sql("update store_settings set require_account = false, cash_after_orders = 0");
     await browser.close();
   }
 })().catch((e) => {
