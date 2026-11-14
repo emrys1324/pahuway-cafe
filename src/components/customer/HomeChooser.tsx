@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui";
 import { useFirstName } from "@/lib/use-first-name";
 import { useCart } from "@/lib/cart";
 import { formatClock } from "@/lib/hours";
+import { formatPeso } from "@/lib/format";
 import { useStoreSettings } from "@/lib/store-settings";
 import { brandOf, welcomeTexts } from "@/lib/brands";
 import { getSupabase } from "@/lib/supabase/client";
@@ -28,6 +29,16 @@ export function HomeChooser() {
   const firstName = useFirstName();
   const [food, setFood] = useState<Thumb[]>([]);
   const [scooters, setScooters] = useState<Thumb[]>([]);
+
+  const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
+  const [minFee, setMinFee] = useState<number | null>(null);
+  const [minRate, setMinRate] = useState<number | null>(null);
+  useEffect(() => {
+    const sb = getSupabase();
+    sb.from("menu_categories").select("id, name").eq("is_active", true).order("sort_order").then(({ data }) => setCats((data as { id: string; name: string }[]) ?? []));
+    sb.from("delivery_zones").select("fee").eq("is_active", true).order("fee").limit(1).then(({ data }) => setMinFee(data?.[0] ? Number(data[0].fee) : null));
+    sb.from("scooters").select("daily_rate").eq("is_active", true).order("daily_rate").limit(1).then(({ data }) => setMinRate(data?.[0] ? Number(data[0].daily_rate) : null));
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -58,7 +69,7 @@ export function HomeChooser() {
   const cafeStatus = !settings
     ? null
     : open
-      ? { tone: "text-sage-700", text: `Open now · until ${formatClock(settings.close_time)}` }
+      ? { tone: "text-orange-700", text: `Open now · until ${formatClock(settings.close_time)}` }
       : settings.is_open
         ? { tone: "text-coffee-700", text: `Closed now · opens ${formatClock(settings.open_time)}` }
         : { tone: "text-coffee-700", text: "Closed for now" };
@@ -98,9 +109,42 @@ export function HomeChooser() {
             emoji={bay.emoji}
             title={rentOpen ? "Book a scooter" : "Scooter rentals"}
             text={t.baybayinCard}
-            status={rs ? (rentOpen ? "Book now" : "Coming soon") : bay.name}
+            status={rs ? (rentOpen ? (minRate ? `Book now · from ${formatPeso(minRate)}/day` : "Book now") : "Coming soon") : bay.name}
           />
         </nav>
+
+        {/* Quick facts, like a delivery app's info strip */}
+        <ul className="-mt-1 flex flex-wrap gap-2 text-sm" aria-label="Good to know" data-testid="info-strip">
+          {minFee !== null && (
+            <li className="rounded-full bg-orange-50 px-3 py-1.5 font-semibold text-orange-800 ring-1 ring-orange-200">
+              🛵 {minFee > 0 ? `Delivery from ${formatPeso(minFee)}` : "Free delivery nearby"}
+            </li>
+          )}
+          {settings && (
+            <li className="rounded-full bg-orange-50 px-3 py-1.5 font-semibold text-orange-800 ring-1 ring-orange-200">⏱ Ready in ~{settings.prep_minutes} min</li>
+          )}
+        </ul>
+
+        {/* What are you craving? — category shortcuts into the menu */}
+        {cats.length > 0 && (
+          <section aria-labelledby="crave-title" data-testid="cravings">
+            <h2 id="crave-title" className="section-title mb-2">
+              What are you craving?
+            </h2>
+            <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+              {cats.slice(0, 10).map((c) => (
+                <li key={c.id} className="shrink-0">
+                  <Link
+                    href={`/menu#cat-${c.id}`}
+                    className="inline-flex min-h-[44px] items-center rounded-full border border-orange-200 bg-white px-4 font-semibold text-coffee-800 shadow-sm transition hover:border-orange-400 hover:bg-orange-50"
+                  >
+                    {c.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <HomeShortcuts />
 
@@ -141,7 +185,7 @@ export function HomeChooser() {
                   )}
                   <span className="font-display text-xl font-bold leading-snug">Rent a scooter from {bay.name}</span>
                 </div>
-                {rs && <span>{rentOpen ? <Badge tone="green">Book now</Badge> : <Badge tone="amber">Coming soon</Badge>}</span>}
+                {rs && <span>{rentOpen ? <Badge tone="amber">Book now{minRate ? ` · from ${formatPeso(minRate)}/day` : ""}</Badge> : <Badge tone="amber">Coming soon</Badge>}</span>}
                 {t.baybayinCard && <span className="text-coffee-700">{t.baybayinCard}</span>}
                 <span className="btn-primary mt-auto w-full">{rentOpen ? "Book a scooter →" : "Learn more →"}</span>
               </div>

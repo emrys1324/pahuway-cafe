@@ -69,7 +69,7 @@ export function BottomNav() {
               href={t.href}
               aria-current={t.active ? "page" : undefined}
               data-testid={`nav-${t.label.toLowerCase()}`}
-              className={`relative flex h-full flex-col items-center justify-center gap-0.5 text-xs font-semibold ${t.active ? "text-coffee-800" : "text-coffee-500"}`}
+              className={`relative flex h-full flex-col items-center justify-center gap-0.5 text-xs font-semibold ${t.active ? "text-orange-700" : "text-coffee-500"}`}
             >
               <span className="relative">
                 <t.icon filled={t.active} />

@@ -44,6 +44,14 @@ export function MenuScreen() {
     [data],
   );
 
+  // opened from a "What are you craving?" shortcut (/menu#cat-…): jump to that category once the menu has loaded
+  const hasMenu = !!data;
+  useEffect(() => {
+    if (!hasMenu || !window.location.hash.startsWith("#cat-")) return;
+    const el = document.getElementById(window.location.hash.slice(1));
+    if (el) setTimeout(() => el.scrollIntoView({ block: "start" }), 50);
+  }, [hasMenu]);
+
   return (
     <div className="min-h-screen pb-28">
       <StoreHeader settings={settings} open={open} />

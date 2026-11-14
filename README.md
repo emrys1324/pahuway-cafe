@@ -184,6 +184,8 @@ Until step 3 is done, the Google button tells customers to use their mobile numb
 ## Landing page (app.padaya.online)
 The welcome page has a **hero** (photo, greeting, *Order food & drinks* / *Book a scooter*). Below it are **shortcuts**: signed-in customers see their latest order with **Order again** and their latest booking, and guests see their saved links and a sign-in prompt. The two big **Order food & drinks** / **Book a scooter** cards sit right under the welcome header (logo, your card text, open/booking status). Below the shortcuts, two **preview cards** show 4 menu photos and 4 scooter photos (the first ones in menu / scooter order) with a button each.
 
+Under the two cards there's an **info strip** (delivery from ₱…, ready in ~… min) and **What are you craving?**, a row of menu categories that opens the menu at that section. The scooter card shows the starting price per day. Accents use the Padaya orange family; there's no green on the landing page.
+
 To edit it, go to **Settings → Branding → Welcome page**:
 - **Text colour** (welcome banner and both Home cards): *Automatic* picks white or dark for readability. Tick it to choose your own colour; Settings warns if it's hard to read (below 4.5:1). Migration 0030.
 - **Welcome banner colour**: tick *Use a banner colour instead of a photo* to show your exact colour with no darkening. The text switches between white and dark automatically, and a live preview shows the result. Untick it to go back to the photo (migration 0029).
