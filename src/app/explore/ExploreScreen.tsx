@@ -27,18 +27,19 @@ export function ExploreScreen() {
   const hub = useHubListings();
   const fav = useFavourites();
 
-  const all = useMemo(() => (hub ? [...hub.food, ...hub.cars, ...hub.scooters] : []), [hub]);
+  const all = useMemo(() => (hub ? [...hub.food, ...hub.stays, ...hub.cars, ...hub.scooters] : []), [hub]);
   const results = useMemo(() => {
     let list = all;
     if (cat === "food") list = hub?.food ?? [];
     else if (cat === "scooters") list = hub?.scooters ?? [];
     else if (cat === "cars") list = hub?.cars ?? [];
+    else if (cat === "stays") list = hub?.stays ?? [];
     else if (cat === "saved") list = all.filter((l) => fav.has(l.kind, l.id));
     else if (cat !== "all") list = [];
     if (q) {
       const words = q.toLowerCase().split(/\s+/);
       list = list.filter((l) => {
-        const hay = `${l.title} ${l.subtitle} ${"category" in l ? (l as { category: string }).category : ""} ${l.kind === "scooter" ? "scooter scooters motorbike motor rental rent ride" : l.kind === "car" ? "car cars rental rent drive driver" : ""}`.toLowerCase();
+        const hay = `${l.title} ${l.subtitle} ${"category" in l ? (l as { category: string }).category : ""} ${l.kind === "scooter" ? "scooter scooters motorbike motor rental rent ride" : l.kind === "car" ? "car cars rental rent drive driver" : l.kind === "stay" ? "stay stays room rooms hotel resort accommodation house beach night" : ""}`.toLowerCase();
         return words.every((w) => hay.includes(w));
       });
     }
@@ -76,7 +77,7 @@ export function ExploreScreen() {
 
         {!hub ? (
           <PageLoader />
-        ) : SOON[cat] && !(cat === "cars" && hub.cars.length > 0) ? (
+        ) : SOON[cat] && !(cat === "cars" && hub.cars.length > 0) && !(cat === "stays" && hub.stays.length > 0) ? (
           <section className="card p-6 text-center" data-testid="coming-soon">
             <p className="text-4xl" aria-hidden>
               {hubCategories(hub).find((c) => c.id === cat)?.emoji}
@@ -86,7 +87,7 @@ export function ExploreScreen() {
           </section>
         ) : cat === "saved" && fav.signedIn === false ? (
           <section className="card space-y-3 p-5" data-testid="saved-signin">
-            <p>Sign in to save your favourite drinks, food and rides with the ♡.</p>
+            <p>Sign in to save your favourite drinks, food, rides and stays with the ♡.</p>
             <Link href="/account?next=%2Fexplore%3Fcat%3Dsaved" className="btn-primary w-full">
               Sign in
             </Link>

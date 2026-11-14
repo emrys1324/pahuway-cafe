@@ -16,11 +16,12 @@ const PASS = "Kape-sa-umaga-1";
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59', welcome_banner_color = null");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.')");
+  sql("update stay_settings set bookings_enabled = false"); // Stays stay "Soon" here; stays have their own test
   sql("update scooters set is_active = false where vehicle_type = 'car'"); // Cars stay "Soon" here; the car flow has its own test
   sql("insert into scooters (name, daily_rate, is_active) select 'Hub Scooter', 650, true where not exists (select 1 from scooters where is_active and vehicle_type = 'scooter')");
   const res = await fetch(BASE + "/api/account/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Hana Hub", phone: PHONE, password: PASS }) });
   assert(res.ok, "test customer created");
-  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe and Baybayin; every scooter belongs to Baybayin");
+  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,padaya-stays,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe, Baybayin and Padaya Stays; every scooter belongs to Baybayin");
 
   const browser = await chromium.launch();
   try {

@@ -56,9 +56,9 @@ export function BottomNav() {
 
   if (hidden) return null;
   const tabs = [
-    { href: "/", label: "Home", active: path === "/" || path.startsWith("/menu") || path.startsWith("/baybayin") && !path.startsWith("/baybayin/booking"), icon: HomeIcon },
+    { href: "/", label: "Home", active: path === "/" || path.startsWith("/menu") || (path.startsWith("/baybayin") && !path.startsWith("/baybayin/booking")) || (path.startsWith("/stays") && !path.startsWith("/stays/booking")), icon: HomeIcon },
     { href: "/explore", label: "Explore", active: path.startsWith("/explore"), icon: ExploreIcon },
-    { href: "/activity", label: "Activity", active: path.startsWith("/activity") || path.startsWith("/order/") || path.startsWith("/baybayin/booking"), icon: ActivityIcon },
+    { href: "/activity", label: "Activity", active: path.startsWith("/activity") || path.startsWith("/order/") || path.startsWith("/baybayin/booking") || path.startsWith("/stays/booking"), icon: ActivityIcon },
     { href: "/messages", label: "Messages", active: path.startsWith("/messages"), icon: MessageIcon, badge: unread },
   ];
   return (

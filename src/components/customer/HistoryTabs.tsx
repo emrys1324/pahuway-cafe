@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui";
 import { formatPeso, ORDER_TYPE_LABEL, STATUS_LABEL } from "@/lib/format";
 import { formatDateTime } from "@/lib/hours";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/rentals";
+import { prettyYmd, STAY_STATUS_LABEL, type StayStatus } from "@/lib/stays";
 import type { Order } from "@/lib/types";
 
 export interface MyBooking {
@@ -20,15 +21,30 @@ export interface MyBooking {
   total: number;
 }
 
-/** Café orders and scooter rentals, as two tabs (Activity page). */
-export function History({ orders, bookings }: { orders: Order[]; bookings: MyBooking[] }) {
-  const [tab, setTab] = useState<"orders" | "rentals">("orders");
+export interface MyStay {
+  id: string;
+  booking_number: string;
+  public_token: string;
+  room_name: string;
+  property_name: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  total: number;
+  status: StayStatus;
+}
+type HTab = "orders" | "rentals" | "stays";
+
+/** Café orders, scooter & car rentals and stays, as tabs (Activity page). */
+export function History({ orders, bookings, stays = [] }: { orders: Order[]; bookings: MyBooking[]; stays?: MyStay[] }) {
+  const [tab, setTab] = useState<HTab>("orders");
   useEffect(() => {
     try {
-      if (localStorage.getItem("account-history-tab") === "rentals") setTab("rentals");
+      const t = localStorage.getItem("account-history-tab");
+      if (t === "rentals" || t === "stays") setTab(t);
     } catch {}
   }, []);
-  const pick = (t: "orders" | "rentals") => {
+  const pick = (t: HTab) => {
     setTab(t);
     try {
       localStorage.setItem("account-history-tab", t);
@@ -36,12 +52,13 @@ export function History({ orders, bookings }: { orders: Order[]; bookings: MyBoo
   };
   const tabs = [
     { id: "orders" as const, label: "Orders", count: orders.length },
-    { id: "rentals" as const, label: "Scooter rentals", count: bookings.length },
+    { id: "rentals" as const, label: "Rentals", count: bookings.length },
+    { id: "stays" as const, label: "Stays", count: stays.length },
   ];
   return (
     <section className="card p-5" data-testid="history">
       <h2 className="section-title mb-3">My activity</h2>
-      <div role="tablist" aria-label="My activity" className="grid grid-cols-2 gap-2 rounded-2xl bg-coffee-100 p-1">
+      <div role="tablist" aria-label="My activity" className="grid grid-cols-3 gap-1 rounded-2xl bg-coffee-100 p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -51,7 +68,7 @@ export function History({ orders, bookings }: { orders: Order[]; bookings: MyBoo
             aria-selected={tab === t.id}
             aria-controls={`panel-${t.id}`}
             onClick={() => pick(t.id)}
-            className={`min-h-[44px] rounded-xl font-semibold ${tab === t.id ? "bg-white shadow" : "text-coffee-700"}`}
+            className={`min-h-[44px] rounded-xl text-sm font-semibold sm:text-base ${tab === t.id ? "bg-white shadow" : "text-coffee-700"}`}
           >
             {t.label} <span className="tabular-nums text-coffee-600">({t.count})</span>
           </button>
@@ -88,11 +105,43 @@ export function History({ orders, bookings }: { orders: Order[]; bookings: MyBoo
             </ul>
           )}
         </div>
+      ) : tab === "stays" ? (
+        <div role="tabpanel" id="panel-stays" aria-labelledby="tab-stays" className="mt-3" data-testid="history-stays">
+          {stays.length === 0 ? (
+            <p className="py-3 text-coffee-700">
+              No stays yet.{" "}
+              <Link href="/stays" className="font-semibold underline">
+                Find a stay
+              </Link>
+            </p>
+          ) : (
+            <ul className="divide-y divide-coffee-100">
+              {stays.map((b) => (
+                <li key={b.id}>
+                  <Link href={`/stays/booking/${b.public_token}`} className="flex items-center justify-between gap-3 py-3">
+                    <div>
+                      <p className="font-bold">
+                        {b.booking_number} · {b.room_name}
+                      </p>
+                      <p className="text-sm text-coffee-700">
+                        {prettyYmd(b.check_in)} → {prettyYmd(b.check_out)} · {b.nights} night{b.nights === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold tabular-nums">{formatPeso(b.total)}</p>
+                      <Badge tone={b.status === "cancelled" ? "red" : b.status === "checked_out" ? "green" : "amber"}>{STAY_STATUS_LABEL[b.status] ?? b.status}</Badge>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <div role="tabpanel" id="panel-rentals" aria-labelledby="tab-rentals" className="mt-3" data-testid="history-rentals">
           {bookings.length === 0 ? (
             <p className="py-3 text-coffee-700">
-              No scooter rentals yet.{" "}
+              No rentals yet.{" "}
               <Link href="/baybayin" className="font-semibold underline">
                 Book a scooter
               </Link>
