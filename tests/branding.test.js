@@ -176,7 +176,7 @@ const assert = (c, m) => {
   await cust.getByTestId("welcome-title").getByText("Mabuhay!").waitFor();
   const homeBg = await cust.getByTestId("customer-header").evaluate((el) => getComputedStyle(el).backgroundColor);
   assert((await cust.getByTestId("store-title").textContent()).trim() === "San Agustin Hub" && homeBg === "rgb(85, 108, 77)", "home page has its own header title and colour");
-  assert((await cust.getByTestId("welcome-subtitle").textContent()) === "Kape or scooter today?" && (await cust.getByText("Best coffee in town").count()) === 1 && (await cust.getByText("Island rides, launching soon").count()) === 1, "welcome text and both card descriptions are editable");
+  assert((await cust.getByTestId("welcome-subtitle").textContent()) === "Kape or scooter today?" && (await cust.getByTestId("choose-cafe").getByText("Best coffee in town").count()) === 1 && (await cust.getByTestId("choose-scooter").getByText("Island rides, launching soon").count()) === 1 && (await cust.getByTestId("preview-cafe").getByText("Best coffee in town").count()) === 1, "welcome text and both card descriptions are editable");
   assert((await cust.getByTestId("customer-header").getByText(/^(Open|Closed)/).count()) === 0, "home header has no café open badge (it's on the café card)");
   await cust.goto(BASE + "/menu");
   await cust.getByRole("heading", { name: "Coffee", exact: true }).waitFor();
@@ -254,7 +254,7 @@ const assert = (c, m) => {
   assert(sqlBay() === "", "Baybayin logo removed (scooter card back to 🛵)");
   await cust.goto(BASE + "/");
   await cust.getByTestId("welcome-title").getByText("Welcome!").waitFor();
-  assert((await cust.getByTestId("store-title").textContent()).trim() === "Pahuway Cafe" && (await cust.getByText("Scooter rentals for getting around San Agustin. Check back soon!").count()) === 1 && (await cust.getByTestId("baybayin-logo").count()) === 0, "welcome page + Baybayin back to defaults (empty fields = defaults)");
+  assert((await cust.getByTestId("store-title").textContent()).trim() === "Pahuway Cafe" && (await cust.getByTestId("choose-scooter").getByText("Scooter rentals for getting around San Agustin. Check back soon!").count()) === 1 && (await cust.getByTestId("baybayin-logo").count()) === 0, "welcome page + Baybayin back to defaults (empty fields = defaults)");
   const restoredBg = await cust.getByTestId("customer-header").evaluate((el) => getComputedStyle(el).backgroundColor);
   assert(restoredBg.startsWith("rgba(251, 247, 240"), "customer header back to default cream");
 

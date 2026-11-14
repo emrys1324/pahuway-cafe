@@ -181,7 +181,7 @@ Any host starting with `rider.` serves only the rider pages: `/` shows the rider
 Until step 3 is done, the Google button tells customers to use their mobile number or email instead.
 
 ## Landing page (app.padaya.online)
-The welcome page has a **hero** (photo, greeting, *Order food & drinks* / *Book a scooter*). Below it are **shortcuts**: signed-in customers see their latest order with **Order again** and their latest booking, and guests see their saved links and a sign-in prompt. The two big **Order food & drinks** / **Book a scooter** cards sit right under the welcome header (logo, your card text, open/booking status).
+The welcome page has a **hero** (photo, greeting, *Order food & drinks* / *Book a scooter*). Below it are **shortcuts**: signed-in customers see their latest order with **Order again** and their latest booking, and guests see their saved links and a sign-in prompt. The two big **Order food & drinks** / **Book a scooter** cards sit right under the welcome header (logo, your card text, open/booking status). Below the shortcuts, two **preview cards** show 4 menu photos and 4 scooter photos (the first ones in menu / scooter order) with a button each.
 
 To edit it, go to **Settings → Branding → Welcome page**:
 - **Welcome page photo** (landscape, 1600 px+). Leave it empty to use the first menu photo.

@@ -19,6 +19,9 @@ const PASS = "Kape-sa-umaga-1";
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
+  // 4 scooters with photos for the preview card (adds "Preview" scooters only if there are fewer than 4)
+  sql("insert into scooters (name, daily_rate, is_active, photo_url) select 'Preview ' || g, 500, true, '/menu/latte.svg' from generate_series(1, greatest(0, 4 - (select count(*) from scooters where is_active))) g");
+  sql("update scooters set photo_url = '/menu/latte.svg' where is_active and photo_url is null");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.'), messenger_url = 'https://m.me/example'");
   sql("update menu_items set is_sold_out = false where name in ('Americano', 'Café Latte')");
 
@@ -67,7 +70,12 @@ const PASS = "Kape-sa-umaga-1";
     assert((await g.getByTestId("brand-background").count()) === 0, "the old faded background is not shown behind the landing page");
     await g.getByTestId("shortcuts-signin").waitFor();
     assert(true, "guests get a 'Sign in to track your orders…' shortcut");
-    assert((await g.getByTestId("cafe-photos").count()) === 0 && (await g.getByTestId("scooter-photos").count()) === 0 && (await g.locator("main a[href='/menu']").count()) === 1 && (await g.locator("main a[href='/baybayin']").count()) === 1, "no photo cards below: the top two cards are the only way to the menu and Baybayin");
+    await g.getByTestId("preview-cards").waitFor();
+    const nScoot = Math.min(4, Number(sql("select count(*) from scooters where is_active and photo_url is not null")));
+    await g.waitForFunction((n) => document.querySelectorAll("[data-testid=scooter-photos] img").length === n || n === 0, nScoot, { timeout: 8000 });
+    assert(nScoot === 4 && (await g.getByTestId("preview-cafe").getByTestId("cafe-photos").locator("img").count()) === 4 && (await g.getByTestId("scooter-photos").locator("img").count()) === 4, "preview cards below show 4 menu photos and 4 scooter photos");
+    const order4 = await g.evaluate(() => { const y = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect().top; return [y("main-actions"), y("preview-cards")]; });
+    assert(order4[0] < order4[1] && (await g.getByTestId("preview-cafe").getAttribute("href")) === "/menu" && (await g.getByTestId("preview-scooter").getAttribute("href")) === "/baybayin", "preview cards sit below the two main cards and open the menu / Baybayin");
     assert((await g.getByTestId("choose-cafe").innerText()).includes("Open now · until"), "café card shows open now / until");
     assert((await g.locator("[data-testid=info], [data-testid=how-it-works]").count()) === 0 && !(await g.locator("main").innerText()).match(/Opening hours|How it works|Find us|Contact us/), "no Opening hours, How it works, Find us or Contact us on the landing page");
     await g.getByTestId("choose-cafe").click();
