@@ -19,6 +19,9 @@ const PASS = "Kape-sa-umaga-1";
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59', hero_url = null, location_text = null, location_map_url = null, contact_phone = '0917 000 0000'");
+  // 4 scooters with photos for the preview card (adds "Preview" scooters only if there are fewer than 4)
+  sql("insert into scooters (name, daily_rate, is_active, photo_url) select 'Preview ' || g, 500, true, '/menu/latte.svg' from generate_series(1, greatest(0, 4 - (select count(*) from scooters where is_active))) g");
+  sql("update scooters set photo_url = '/menu/latte.svg' where is_active and photo_url is null");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.'), messenger_url = 'https://m.me/example'");
   sql("update menu_items set is_sold_out = false where name in ('Americano', 'Café Latte')");
 
@@ -50,6 +53,8 @@ const PASS = "Kape-sa-umaga-1";
     await g.getByTestId("hero").waitFor();
     await g.getByTestId("choose-scooter").getByText("Book a scooter").waitFor();
     assert((await g.getByTestId("welcome-title").textContent()) === "Welcome!" && (await g.getByTestId("hero").getByRole("link").count()) === 0, "welcome header: title only, no buttons inside it");
+    const heroH = (await g.getByTestId("hero").boundingBox()).height;
+    assert(heroH <= 160, `welcome banner is half its old height on a phone (${Math.round(heroH)}px, was ~260)`);
     const heroText = (await g.getByTestId("hero").innerText()).replace(/\n+/g, "\n").trim();
     assert(heroText === "Welcome!\nWhat would you like to do today?", `welcome header shows only the greeting and the line under it (no name / tagline): ${JSON.stringify(heroText)}`);
     const pos = await g.evaluate(() => {
@@ -65,7 +70,12 @@ const PASS = "Kape-sa-umaga-1";
     assert((await g.getByTestId("brand-background").count()) === 0, "the old faded background is not shown behind the landing page");
     await g.getByTestId("shortcuts-signin").waitFor();
     assert(true, "guests get a 'Sign in to track your orders…' shortcut");
-    assert((await g.getByTestId("cafe-photos").count()) === 0 && (await g.getByTestId("scooter-photos").count()) === 0 && (await g.locator("main a[href='/menu']").count()) === 1 && (await g.locator("main a[href='/baybayin']").count()) === 1, "no photo cards below: the top two cards are the only way to the menu and Baybayin");
+    await g.getByTestId("preview-cards").waitFor();
+    const nScoot = Math.min(4, Number(sql("select count(*) from scooters where is_active and photo_url is not null")));
+    await g.waitForFunction((n) => document.querySelectorAll("[data-testid=scooter-photos] img").length === n || n === 0, nScoot, { timeout: 8000 });
+    assert(nScoot === 4 && (await g.getByTestId("preview-cafe").getByTestId("cafe-photos").locator("img").count()) === 4 && (await g.getByTestId("scooter-photos").locator("img").count()) === 4, "preview cards below show 4 menu photos and 4 scooter photos");
+    const order4 = await g.evaluate(() => { const y = (id) => document.querySelector(`[data-testid=${id}]`).getBoundingClientRect().top; return [y("main-actions"), y("preview-cards")]; });
+    assert(order4[0] < order4[1] && (await g.getByTestId("preview-cafe").getAttribute("href")) === "/menu" && (await g.getByTestId("preview-scooter").getAttribute("href")) === "/baybayin", "preview cards sit below the two main cards and open the menu / Baybayin");
     assert((await g.getByTestId("choose-cafe").innerText()).includes("Open now · until"), "café card shows open now / until");
     assert((await g.locator("[data-testid=info], [data-testid=how-it-works]").count()) === 0 && !(await g.locator("main").innerText()).match(/Opening hours|How it works|Find us|Contact us/), "no Opening hours, How it works, Find us or Contact us on the landing page");
     await g.getByTestId("choose-cafe").click();
@@ -85,6 +95,38 @@ const PASS = "Kape-sa-umaga-1";
     await admin.goto(BASE + "/admin/settings");
     await admin.getByTestId("landing-settings").waitFor();
     assert((await admin.locator("#location-text").count()) === 0 && (await admin.locator("input[aria-label='Upload welcome page photo']").count()) === 1, "Settings → Welcome page has the photo upload and no location fields");
+
+    // ---- Home page cards: colour, logo and background photo are editable, with a live preview
+    const F = (n) => path.join(__dirname, "fixtures", n);
+    const cardSet = admin.getByTestId("home-card-settings");
+    await cardSet.scrollIntoViewIfNeeded();
+    await admin.getByTestId("home-card-cafe").getByRole("group", { name: "Background colour" }).getByRole("button", { name: "Use colour #efe4d8" }).click();
+    const prevBg = await admin.getByTestId("home-card-preview").locator("> *").first().evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+    assert(prevBg[0] === "rgb(239, 228, 216)" && prevBg[1] === "rgb(46, 30, 20)", "preview: a light café card colour switches its text to dark automatically");
+    await admin.setInputFiles("input[aria-label='Upload scooter card logo']", F("test-logo.png"));
+    await admin.getByText("Scooter card logo uploaded").waitFor();
+    const bayLogo = await admin.getByTestId("home-bay-logo-preview").getAttribute("src");
+    await admin.setInputFiles("input[aria-label='Upload scooter card background photo']", F("test-background.png"));
+    await admin.getByText("Scooter card photo uploaded").waitFor();
+    assert((await admin.getByTestId("home-card-preview").getByTestId("home-card-bg").count()) === 1, "preview shows the scooter card's background photo");
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select home_cafe_color || '|' || (home_bay_logo_url is not null) || '|' || (home_bay_bg_url is not null) from store_settings") === "#efe4d8|true|true", "card colour, logo and photo are saved");
+    await g.goto(BASE + "/");
+    await g.getByTestId("choose-cafe").waitFor();
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(239, 228, 216)", null, { timeout: 8000 });
+    assert((await g.getByTestId("choose-cafe").evaluate((el) => getComputedStyle(el).color)) === "rgb(46, 30, 20)", "Home: the café card uses the chosen colour, with readable dark text");
+    assert((await g.getByTestId("choose-scooter").getByTestId("baybayin-logo").getAttribute("src")) === bayLogo && (await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 1 && (await g.getByTestId("choose-scooter").evaluate((el) => getComputedStyle(el).color)) === "rgb(255, 255, 255)", "Home: the scooter card shows the uploaded logo and background photo, with white text");
+    // back to defaults
+    await admin.getByTestId("home-card-cafe").getByRole("button", { name: "Background colour: use default" }).click();
+    await admin.getByTestId("home-card-bay").getByRole("button", { name: "Use the brand logo" }).click();
+    await admin.getByTestId("home-card-bay").getByRole("button", { name: "Remove photo" }).click();
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select coalesce(home_cafe_color, '') || '|' || coalesce(home_bay_logo_url, '') || '|' || coalesce(home_bay_bg_url, '') from store_settings") === "||", "clearing them returns the cards to the built-in look");
+    await g.reload();
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(67, 44, 29)", null, { timeout: 8000 });
+    assert((await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 0, "Home: default café brown and no scooter photo again");
 
     // ---- hero photo from Settings
     sql("update store_settings set hero_url = '/menu/latte.svg'");
@@ -123,7 +165,7 @@ const PASS = "Kape-sa-umaga-1";
     console.log("ALL LANDING PAGE CHECKS PASSED");
   } finally {
     sql("update menu_items set is_sold_out = false where name = 'Americano'");
-    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null");
+    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null");
     await browser.close();
   }
 })().catch((e) => {

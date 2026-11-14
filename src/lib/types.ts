@@ -49,6 +49,12 @@ export interface StoreSettings {
   hero_url?: string | null;
   location_text?: string | null;
   location_map_url?: string | null;
+  home_cafe_color?: string | null;
+  home_cafe_logo_url?: string | null;
+  home_cafe_bg_url?: string | null;
+  home_bay_color?: string | null;
+  home_bay_logo_url?: string | null;
+  home_bay_bg_url?: string | null;
 }
 
 export interface Category {
