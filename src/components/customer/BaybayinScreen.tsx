@@ -7,6 +7,8 @@ import { brandOf, welcomeTexts } from "@/lib/brands";
 import { bookingsOpen, useRentalSettings } from "@/lib/rentals";
 import { ScooterBooking } from "./ScooterBooking";
 import { PageLoader } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { getSupabase } from "@/lib/supabase/client";
 
 /** Baybayin scooter rental — booking form when bookings are open (switch on + terms written), else "coming soon". */
 export function BaybayinScreen() {
@@ -15,6 +17,22 @@ export function BaybayinScreen() {
   const cafe = brandOf(settings, "cafe");
   const t = welcomeTexts(settings);
   const rs = useRentalSettings();
+  // Scooters | Cars: /baybayin?type=car opens the car list; the switch shows once a car is switched on
+  const [type, setType] = useState<"scooter" | "car">("scooter");
+  const [hasCars, setHasCars] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("type") === "car") setType("car");
+    getSupabase()
+      .from("scooters")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .eq("vehicle_type", "car")
+      .then(({ count }) => setHasCars((count ?? 0) > 0));
+  }, []);
+  const pickType = (t: "scooter" | "car") => {
+    setType(t);
+    window.history.replaceState(null, "", t === "car" ? "/baybayin?type=car" : "/baybayin");
+  };
   if (rs && bookingsOpen(rs))
     return (
       <div className="min-h-screen">
@@ -30,11 +48,27 @@ export function BaybayinScreen() {
               </span>
             )}
             <div>
-              <h1 className="font-display text-2xl font-bold leading-tight">Rent a scooter</h1>
+              <h1 className="font-display text-2xl font-bold leading-tight">{type === "car" ? "Rent a car" : "Rent a scooter"}</h1>
               <p className="text-coffee-700">{bay.tagline}</p>
             </div>
           </div>
-          <ScooterBooking rs={rs} brandName={bay.name} />
+          {(hasCars || type === "car") && (
+            <div role="tablist" aria-label="Vehicle type" className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-coffee-100 p-1" data-testid="vehicle-switch">
+              {(["scooter", "car"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={type === v}
+                  onClick={() => pickType(v)}
+                  className={`min-h-[44px] rounded-xl font-semibold ${type === v ? "bg-white shadow" : "text-coffee-700"}`}
+                >
+                  {v === "car" ? "🚗 Cars" : "🛵 Scooters"}
+                </button>
+              ))}
+            </div>
+          )}
+          <ScooterBooking key={type} rs={rs} brandName={bay.name} vehicleType={type} />
         </main>
       </div>
     );

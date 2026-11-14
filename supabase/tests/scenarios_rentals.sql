@@ -219,4 +219,18 @@ select pg_temp.check((select count(*) from customer_messages where user_id = 'c0
   'booking messages: received, confirmed, cancelled, deposit refunded (with a link to the booking)');
 select pg_temp.check((select count(*) from customer_messages where user_id <> 'c0000000-0000-0000-0000-000000000001') = 0, 'guest bookings create no messages');
 
+-- cars (Phase 2): self-drive needs a license; with a driver: no license, driver fee per started day; scooters can't take a driver
+insert into scooters (id, name, daily_rate, vehicle_type, seats, transmission, fuel, driver_fee, units)
+values ('a1000000-0000-0000-0000-0000000000c1', 'Toyota Vios', 2500, 'car', 5, 'automatic', 'gasoline', 1000, 1);
+set role anon;
+select pg_temp.expect_error($q$select book_scooter(pg_temp.req('a1000000-0000-0000-0000-0000000000c1', 900, 948, '{"license_path": null}'))$q$, 'license');
+create temp table car_self on commit preserve rows as select book_scooter(pg_temp.req('a1000000-0000-0000-0000-0000000000c1', 900, 948)) r;
+select pg_temp.check((select (r->>'total')::numeric = 5000 and (r->>'with_driver')::boolean = false and (r->>'driver_fee')::numeric = 0 from car_self), 'car self-drive: 2 days × ₱2,500 = ₱5,000, license required');
+create temp table car_drv on commit preserve rows as select book_scooter(pg_temp.req('a1000000-0000-0000-0000-0000000000c1', 1008, 1058, '{"with_driver": true, "license_path": null}')) r;
+select pg_temp.check((select (r->>'with_driver')::boolean and (r->>'driver_fee')::numeric = 3000 and (r->>'total')::numeric = 5000 + 2 * 50 + 3000 from car_drv),
+  'car with driver: no license; 2 days + 2 extra hours → driver for 3 started days (₱3,000) on top of the rental');
+select pg_temp.expect_error($q$select book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000001', 1104, 1128, '{"with_driver": true}'))$q$, 'self-drive only');
+reset role;
+select pg_temp.check((select helmets = 0 and license_path is null from rental_bookings where booking_number = (select r->>'booking_number' from car_drv)), 'car bookings carry no helmets; the with-driver booking stores no license');
+
 select 'ALL RENTAL SCENARIOS PASSED';

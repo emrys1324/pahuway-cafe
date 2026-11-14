@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { StoreHeader } from "./Header";
 import { HomeShortcuts } from "./HomeShortcuts";
 import { HubSearch, ListingRow } from "./HubParts";
-import { HUB_CATEGORIES, useHubListings } from "@/lib/hub";
+import { hubCategories, useHubListings } from "@/lib/hub";
 import { HOME_CARD_DEFAULTS, HomeCard } from "./HomeCard";
 import { WelcomeBanner } from "./WelcomeBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -84,7 +84,7 @@ export function HomeChooser() {
           />
         </nav>
 
-        <HubSearch />
+        <HubSearch hub={hub} />
 
         {/* Quick facts, like a delivery app's info strip */}
         <ul className="-mt-1 flex flex-wrap gap-2 text-sm" aria-label="Good to know" data-testid="info-strip">
@@ -104,8 +104,8 @@ export function HomeChooser() {
             What are you planning?
           </h2>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
-            {HUB_CATEGORIES.map((c) => {
-              const from = c.id === "food" ? hub?.minFood : c.id === "scooters" ? hub?.minRate : null;
+            {hubCategories(hub).map((c) => {
+              const from = c.id === "food" ? hub?.minFood : c.id === "scooters" ? hub?.minRate : c.id === "cars" ? hub?.minCarRate : null;
               return (
                 <li key={c.id}>
                   <Link
@@ -120,7 +120,7 @@ export function HomeChooser() {
                     {c.soon ? (
                       <span className="rounded-full bg-coffee-100 px-2 py-0.5 text-xs font-bold text-coffee-700">Coming soon</span>
                     ) : (
-                      from != null && <span className="text-xs font-semibold text-orange-700">From {formatPeso(from)}{c.id === "scooters" ? "/day" : ""}</span>
+                      from != null && <span className="text-xs font-semibold text-orange-700">From {formatPeso(from)}{c.id === "scooters" || c.id === "cars" ? "/day" : ""}</span>
                     )}
                   </Link>
                 </li>
@@ -140,7 +140,7 @@ export function HomeChooser() {
           title="Scooters and car rentals"
           subtitle="The easiest way to get around Tablas"
           href="/explore?cat=scooters"
-          listings={hub?.scooters ?? []}
+          listings={[...(hub?.cars ?? []), ...(hub?.scooters ?? [])]}
           testId="row-rentals"
         />
         <section className="card flex items-center gap-4 p-4" data-testid="stays-teaser">

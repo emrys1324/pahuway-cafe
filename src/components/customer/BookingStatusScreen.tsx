@@ -23,6 +23,9 @@ interface PublicBooking {
   days: number;
   daily_rate: number;
   helmets: number;
+  with_driver?: boolean;
+  driver_fee?: number;
+  vehicle_type?: "scooter" | "car" | null;
   delivery: boolean;
   delivery_address: string | null;
   delivery_fee: number;
@@ -176,7 +179,8 @@ export function BookingStatusScreen({ token }: { token: string }) {
         <section className="card space-y-2 p-5 text-sm">
           <h2 className="section-title mb-1">Details</h2>
           <p>
-            <strong>{b.scooter_name}</strong> · {b.helmets === 0 ? "no helmet" : `${b.helmets} helmet${b.helmets > 1 ? "s" : ""}`}
+            <strong>{b.scooter_name}</strong> ·{" "}
+            {b.vehicle_type === "car" ? (b.with_driver ? "with our driver" : "self-drive") : b.helmets === 0 ? "no helmet" : `${b.helmets} helmet${b.helmets > 1 ? "s" : ""}`}
           </p>
           <p data-testid="booking-times">
             <strong>Pickup:</strong> {prettyDateTime(b.pickup_at)}
@@ -195,6 +199,12 @@ export function BookingStatusScreen({ token }: { token: string }) {
               <div className="flex justify-between">
                 <dt>Extra {b.excess_hours} hour{b.excess_hours === 1 ? "" : "s"}</dt>
                 <dd>{formatPeso(b.excess_fee)}</dd>
+              </div>
+            )}
+            {b.with_driver && Number(b.driver_fee) > 0 && (
+              <div className="flex justify-between" data-testid="status-driver-fee">
+                <dt>Driver</dt>
+                <dd>{formatPeso(Number(b.driver_fee))}</dd>
               </div>
             )}
             {b.delivery && (

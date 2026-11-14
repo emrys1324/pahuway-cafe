@@ -10,11 +10,13 @@ import { useStoreSettings } from "@/lib/store-settings";
 import { getSupabase } from "@/lib/supabase/client";
 import { formatPeso, friendlyError, normalizePhone } from "@/lib/format";
 import { resizeImage } from "@/lib/upload";
-import { addDays, getRecentBooking, hoursLabel, manilaDate, manilaInstant, nextPickupSlot, prettyDate, rentalQuote, rentalHours, securityFor, rentalSlots, saveRecentBooking, slotLabel, type RentalSettings, type Scooter } from "@/lib/rentals";
+import { addDays, carSpecs, getRecentBooking, hoursLabel, manilaDate, manilaInstant, nextPickupSlot, prettyDate, rentalQuote, rentalHours, securityFor, rentalSlots, saveRecentBooking, slotLabel, type RentalSettings, type Scooter } from "@/lib/rentals";
 
 
 /** Baybayin booking (pickup only): calendar & times → scooter → details & license → agree to terms → GCash deposit receipt. */
-export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandName: string }) {
+export function ScooterBooking({ rs, brandName, vehicleType = "scooter" }: { rs: RentalSettings; brandName: string; vehicleType?: "scooter" | "car" }) {
+  const isCar = vehicleType === "car";
+  const noun = isCar ? "car" : "scooter";
   const today = manilaDate();
   const { settings } = useStoreSettings();
   const hours = rentalHours(rs);
@@ -33,6 +35,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [helmets, setHelmets] = useState(1);
+  const [withDriver, setWithDriver] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [securityNow, setSecurityNow] = useState(false);
   const [method, setMethod] = useState<"online" | "gcash">(rs.online_enabled ? "online" : "gcash");
@@ -74,7 +77,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
       .order("sort_order")
       .order("name")
       .then(({ data }) => {
-        setScooters((data as Scooter[]) ?? []);
+        setScooters(((data as Scooter[]) ?? []).filter((x) => (x.vehicle_type ?? "scooter") === vehicleType));
         // opened from a listing card (/baybayin?scooter=…): pre-select that scooter
         const want = new URLSearchParams(window.location.search).get("scooter");
         if (want && (data ?? []).some((x: { id: string }) => x.id === want)) setPick(want);
@@ -124,7 +127,10 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
   }, [busyIds, pick]);
 
   const scooter = scooters?.find((s) => s.id === pick) ?? null;
-  const total = scooter ? priceFor(scooter) : 0;
+  const driverOn = isCar && withDriver && scooter?.driver_fee != null;
+  const driverDays = days + (quote.excessHours > 0 ? 1 : 0);
+  const driverFee = driverOn ? Number(scooter!.driver_fee) * driverDays : 0;
+  const total = scooter ? priceFor(scooter) + driverFee : 0;
   const deposit = total ? Math.min(total, Math.max(1, Math.round((total * rs.deposit_percent) / 100))) : 0;
   const security = scooter ? securityFor(scooter, rs) : 0;
   const upfront = securityNow && security > 0;
@@ -135,12 +141,12 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
   if (!validDates) errors.dates = pastPickup ? "That pickup time has passed. Please choose a later time." : "Return at least 1 hour after pickup.";
   else if (!slots.includes(startTime) || !slots.includes(endTime)) errors.dates = `Pickup and return are from ${slotLabel(hours.open)} to ${slotLabel(hours.close)}. Tick the box below to arrange another time.`;
   else if (tooLong) errors.dates = `Rentals can be up to ${rs.max_days} days.`;
-  if (!scooter) errors.scooter = "Choose a scooter.";
+  if (!scooter) errors.scooter = `Choose a ${noun}.`;
   if (name.trim().length < 2) errors.name = "Please enter your name.";
   if (!normalizePhone(phone)) errors.phone = "Use the format 09XXXXXXXXX.";
   if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) errors.email = "Please check your email.";
-  if (!license) errors.license = "Please add a photo of your driver's license.";
-  else if (license.size > 8 * 1024 * 1024) errors.license = "That photo is too large (max 8 MB).";
+  if (!driverOn && !license) errors.license = "Please add a photo of your driver's license.";
+  else if (!driverOn && license && license.size > 8 * 1024 * 1024) errors.license = "That photo is too large (max 8 MB).";
   if (!agreed) errors.terms = "Please read and agree to the terms and conditions.";
   else if (!payOnline) {
     if (!proof) errors.proof = "Please attach a screenshot of your GCash payment.";
@@ -160,11 +166,14 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
     setBusy(true);
     try {
       const db = getSupabase();
-      const blob = await resizeImage(license!, 1600);
-      const ext = blob.type === "image/jpeg" ? "jpg" : (license!.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const path = `licenses/${today}/${crypto.randomUUID()}.${ext}`;
-      const up = await db.storage.from("license-photos").upload(path, blob, { contentType: blob.type || license!.type, upsert: false });
-      if (up.error) throw new Error("We couldn't upload your license photo. Please try again. " + up.error.message);
+      let path: string | null = null;
+      if (!driverOn) {
+        const blob = await resizeImage(license!, 1600);
+        const ext = blob.type === "image/jpeg" ? "jpg" : (license!.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+        path = `licenses/${today}/${crypto.randomUUID()}.${ext}`;
+        const up = await db.storage.from("license-photos").upload(path, blob, { contentType: blob.type || license!.type, upsert: false });
+        if (up.error) throw new Error("We couldn't upload your license photo. Please try again. " + up.error.message);
+      }
       let proofPath: string | null = null;
       if (!payOnline) {
         const pblob = await resizeImage(proof!, 1600);
@@ -181,7 +190,8 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
           customer_name: name.trim(),
           customer_phone: normalizePhone(phone),
           customer_email: email.trim() || null,
-          helmets,
+          helmets: isCar ? 0 : helmets,
+          with_driver: driverOn,
           license_path: path,
           notes,
           terms_agreed: agreed,
@@ -284,9 +294,9 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
         <>
       {/* 2 · Scooter */}
       <section className="card space-y-3 p-5" data-error={tried && !!errors.scooter}>
-        <h2 className="section-title">Choose a scooter</h2>
-        {scooters.length === 0 && <p className="text-coffee-700">No scooters are available to book yet. Please check back soon.</p>}
-        <div className="grid gap-3" role="radiogroup" aria-label="Scooter">
+        <h2 className="section-title">Choose a {noun}</h2>
+        {scooters.length === 0 && <p className="text-coffee-700">No {noun}s are available to book yet. Please check back soon.</p>}
+        <div className="grid gap-3" role="radiogroup" aria-label={isCar ? "Car" : "Scooter"}>
           {scooters.map((s) => {
             const booked = busyIds.has(s.id);
             const on = pick === s.id;
@@ -302,10 +312,16 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
                 data-testid="scooter-option"
                 className={`flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-coffee-700 bg-coffee-50" : "border-coffee-200 bg-white"}`}
               >
-                <ScooterPhoto src={s.photo_url} alt={s.name} className="h-20 w-20 shrink-0 rounded-xl" />
+                <ScooterPhoto car={isCar} src={s.photo_url} alt={s.name} className="h-20 w-20 shrink-0 rounded-xl" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-bold">{s.name}</span>
+                  {isCar && carSpecs(s) && (
+                    <span className="block text-sm font-semibold text-coffee-800" data-testid="car-specs">
+                      {carSpecs(s)}
+                    </span>
+                  )}
                   {s.description && <span className="block text-sm text-coffee-700">{s.description}</span>}
+                  {isCar && <span className="block text-xs text-coffee-600">{s.driver_fee != null ? `Self-drive, or with a driver (+${formatPeso(s.driver_fee)}/day)` : "Self-drive"}</span>}
                   <span className="mt-1 block text-sm">
                     <strong className="tabular-nums">{formatPeso(s.daily_rate)}</strong>/day
                     {validDates && !tooLong && (days > 1 || quote.excessHours > 0) && (
@@ -332,7 +348,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
       </section>
 
       {needSignIn ? (
-        <SignInGate next="/baybayin" what="book" />
+        <SignInGate next={isCar ? "/baybayin?type=car" : "/baybayin"} what="book" />
       ) : (
         <>
       {/* 3 · Details */}
@@ -340,7 +356,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
         <h2 className="section-title">Your details</h2>
         <div data-error={tried && !!errors.name}>
           <label className="label" htmlFor="renter-name">
-            Name (as on your license)
+            {driverOn ? "Name" : "Name (as on your license)"}
           </label>
           <input id="renter-name" className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
           {show("name")}
@@ -361,6 +377,16 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
             {show("email")}
           </div>
         </div>
+        {isCar && scooter?.driver_fee != null && (
+          <label className="flex items-start gap-3 rounded-2xl border-2 border-coffee-200 p-3" data-testid="with-driver">
+            <input type="checkbox" className="mt-1 h-5 w-5 accent-coffee-700" checked={withDriver} onChange={(e) => setWithDriver(e.target.checked)} />
+            <span>
+              <span className="block font-semibold">Book with a driver (+{formatPeso(scooter.driver_fee)}/day)</span>
+              <span className="text-sm text-coffee-700">Our driver takes you around — no license needed.</span>
+            </span>
+          </label>
+        )}
+        {!isCar && (
         <fieldset>
           <legend className="label">Helmets</legend>
           <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Helmets">
@@ -371,6 +397,8 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
             ))}
           </div>
         </fieldset>
+        )}
+        {!driverOn && (
         <div data-error={tried && !!errors.license}>
           <span className="label">Driver&apos;s license photo</span>
           <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-coffee-200 p-3">
@@ -390,6 +418,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
           </label>
           {show("license")}
         </div>
+        )}
         <div>
           <label className="label" htmlFor="renter-notes">
             Notes <span className="font-normal text-coffee-600">(optional, e.g. pickup time)</span>
@@ -415,6 +444,14 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
                   Extra {quote.excessHours} hour{quote.excessHours === 1 ? "" : "s"} × {formatPeso(excessRate)}
                 </dt>
                 <dd className="tabular-nums">{formatPeso(excessFee)}</dd>
+              </div>
+            )}
+            {driverOn && (
+              <div className="flex justify-between gap-3" data-testid="driver-fee">
+                <dt>
+                  Driver · {driverDays} day{driverDays === 1 ? "" : "s"} × {formatPeso(scooter.driver_fee!)}
+                </dt>
+                <dd className="tabular-nums">{formatPeso(driverFee)}</dd>
               </div>
             )}
             <div className="flex justify-between gap-3 border-t border-coffee-100 pt-2 text-base font-bold">
@@ -549,7 +586,7 @@ export function ScooterBooking({ rs, brandName }: { rs: RentalSettings; brandNam
       <div className="fixed inset-x-0 bottom-[var(--nav-h,0px)] z-20 border-t border-coffee-100 bg-cream/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur [.has-bottom-nav_&]:pb-3">
         <div className="mx-auto max-w-lg">
           <button className="btn-primary w-full" disabled={busy}>
-            {busy ? <Spinner /> : agreed && deposit ? (payOnline ? `Pay ${formatPeso(payNow)} online` : `Book & send ${formatPeso(payNow)}`) : `Book a scooter from ${brandName}`}
+            {busy ? <Spinner /> : agreed && deposit ? (payOnline ? `Pay ${formatPeso(payNow)} online` : `Book & send ${formatPeso(payNow)}`) : `Book a ${noun} from ${brandName}`}
           </button>
         </div>
       </div>

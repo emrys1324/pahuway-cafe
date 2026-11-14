@@ -3,10 +3,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ListingCard, type Listing } from "./ListingCard";
-import { HUB_CATEGORIES } from "@/lib/hub";
+import { hubCategories, type HubData } from "@/lib/hub";
 
 /** koobo-style search: one box for food, scooters, cars and stays, plus category shortcuts. */
-export function HubSearch({ initial = "", pills = true }: { initial?: string; pills?: boolean }) {
+export function HubSearch({ initial = "", pills = true, hub = null }: { initial?: string; pills?: boolean; hub?: HubData | null }) {
   const router = useRouter();
   const [q, setQ] = useState(initial);
   return (
@@ -36,7 +36,7 @@ export function HubSearch({ initial = "", pills = true }: { initial?: string; pi
       </form>
       {pills && (
       <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]" aria-label="Categories">
-        {HUB_CATEGORIES.map((c) => (
+        {hubCategories(hub).map((c) => (
           <li key={c.id} className="shrink-0">
             <Link
               href={`/explore?cat=${c.id}`}
