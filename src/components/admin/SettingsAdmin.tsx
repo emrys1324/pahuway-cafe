@@ -8,6 +8,7 @@ import { useStoreSettings } from "@/lib/store-settings";
 import { BackgroundLayer } from "@/components/BrandBackground";
 import { DEFAULT_STAFF_HEADER, headerTheme, isHex } from "@/lib/color";
 import { HOME_CARD_DEFAULTS, HomeCard } from "@/components/customer/HomeCard";
+import { WelcomeBanner } from "@/components/customer/WelcomeBanner";
 import type { StoreSettings } from "@/lib/types";
 import { TeamSection } from "./TeamAdmin";
 import { CustomerPasswordReset } from "./CustomerPasswordReset";
@@ -82,6 +83,7 @@ export function SettingsAdmin() {
         require_account: s.require_account !== false,
         cash_after_orders: Math.min(50, Math.max(0, Math.round(Number(s.cash_after_orders ?? 3)) || 0)),
         hero_url: s.hero_url || null,
+        welcome_banner_color: isHex(s.welcome_banner_color) ? s.welcome_banner_color : null,
         home_cafe_color: isHex(s.home_cafe_color) ? s.home_cafe_color : null,
         home_cafe_logo_url: s.home_cafe_logo_url || null,
         home_cafe_bg_url: s.home_cafe_bg_url || null,
@@ -411,7 +413,12 @@ function BrandingSection({
               <p className="hint">Leave any field empty to use the text shown in grey.</p>
             </div>
             <div className="space-y-3 border-t border-coffee-100 pt-5" data-testid="landing-settings">
-              <p className="font-bold">Welcome page photo</p>
+              <p className="font-bold">Welcome banner</p>
+              <div data-testid="banner-preview">
+                <WelcomeBanner color={s.welcome_banner_color} photo={s.hero_url} title={welcomeTexts(s).title} subtitle={welcomeTexts(s).subtitle} />
+              </div>
+              <WelcomeBannerColour value={s.welcome_banner_color ?? null} onChange={(v) => set("welcome_banner_color", v)} />
+              <p className="font-semibold">Welcome page photo{isHex(s.welcome_banner_color) ? " (not shown while a banner colour is set)" : ""}</p>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-coffee-100 sm:w-48">
                   {s.hero_url ? (
@@ -874,5 +881,20 @@ function OnlinePaymentsSection({ enabled, onChange }: { enabled: boolean; onChan
         </p>
       )}
     </section>
+  );
+}
+
+/** "Welcome banner colour": exact colour, no darkening; empty = use the welcome photo. */
+function WelcomeBannerColour({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const on = isHex(value);
+  return (
+    <div className="space-y-2 rounded-2xl border border-coffee-100 p-4" data-testid="banner-colour">
+      <label className="flex items-center gap-3 font-semibold">
+        <input type="checkbox" className="h-5 w-5 accent-coffee-700" checked={on} onChange={(e) => onChange(e.target.checked ? "#c2410c" : null)} aria-label="Use a banner colour instead of a photo" />
+        Use a banner colour instead of a photo
+      </label>
+      {on && <ColorField id="welcome-banner-color" label="Welcome banner colour" value={value} fallback="#c2410c" onChange={(v) => onChange(v ?? "#c2410c")} />}
+      <p className="hint">Shows your exact colour with no darkening. The text switches between white and dark automatically so it stays readable. Untick to show the welcome photo again.</p>
+    </div>
   );
 }
