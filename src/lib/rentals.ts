@@ -32,6 +32,11 @@ export interface Scooter {
   daily_rate: number;
   units: number;
   security_deposit: number | null; // null = use the default from rental settings
+  vehicle_type?: "scooter" | "car";
+  seats?: number | null;
+  transmission?: "automatic" | "manual" | null;
+  fuel?: "gasoline" | "diesel" | "electric" | "hybrid" | null;
+  driver_fee?: number | null; // per day; null = self-drive only
   photo_url: string | null;
   is_active: boolean;
   sort_order: number;
@@ -185,3 +190,9 @@ export function peakUseOnDay(taken: { pickup_at: string; blocked_until: string }
   return Math.max(...pts.map((t) => r.filter((x) => x.s <= t && x.e > t).length));
 }
 export const monthLabel = (year: number, month0: number) => new Date(Date.UTC(year, month0, 15)).toLocaleDateString("en-PH", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** "5 seats · Automatic · Gasoline" for a car. */
+export function carSpecs(v: Pick<Scooter, "seats" | "transmission" | "fuel">): string {
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+  return [v.seats ? `${v.seats} seats` : null, v.transmission ? cap(v.transmission) : null, v.fuel ? cap(v.fuel) : null].filter(Boolean).join(" · ");
+}

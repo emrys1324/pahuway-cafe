@@ -6,13 +6,15 @@ import { getAuthedSupabase, getSupabase } from "@/lib/supabase/client";
 import { formatPeso } from "@/lib/format";
 import { formatDateTime } from "@/lib/hours";
 import { uploadPublicImage } from "@/lib/upload";
-import { TIME_SLOTS, hhmm, slotLabel, BOOKING_STATUS_LABEL, PAYMENT_LABEL, addDays, manilaDate, manilaDateOf, monthGrid, monthLabel, prettyDateTime, prettyTime, touchesDay, type BookingStatus, type RentalSettings, type Scooter } from "@/lib/rentals";
+import { carSpecs, TIME_SLOTS, hhmm, slotLabel, BOOKING_STATUS_LABEL, PAYMENT_LABEL, addDays, manilaDate, manilaDateOf, monthGrid, monthLabel, prettyDateTime, prettyTime, touchesDay, type BookingStatus, type RentalSettings, type Scooter } from "@/lib/rentals";
 import { useStaffAccess } from "./StaffAccess";
 
 interface Booking {
   id: string;
   booking_number: string;
   scooter_id: string;
+  with_driver?: boolean;
+  driver_fee?: number;
   scooter_name: string;
   customer_name: string;
   customer_phone: string;
@@ -34,7 +36,7 @@ interface Booking {
   pay_now: number | null;
   excess_hours: number;
   excess_fee: number;
-  license_path: string;
+  license_path: string | null;
   notes: string | null;
   status: BookingStatus;
   payment_status: string;
@@ -62,7 +64,7 @@ export function RentalsAdmin() {
         <div role="tablist" aria-label="Rentals" className="flex gap-1 rounded-2xl bg-white p-1 shadow-card">
           {(["bookings", "calendar", "scooters", "settings"] as Tab[]).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${tab === t ? "bg-coffee-800 text-cream" : "text-coffee-700"}`}>
-              {t}
+              {t === "scooters" ? "vehicles" : t}
             </button>
           ))}
         </div>
@@ -195,10 +197,11 @@ function BookingSheet({ booking: b, onClose, onChanged }: { booking: Booking | n
     setCancelling(false);
     if (!b) return;
     loadTexts();
-    getSupabase()
-      .storage.from("license-photos")
-      .createSignedUrl(b.license_path, 600)
-      .then(({ data }) => setLicense(data?.signedUrl ?? null));
+    if (b.license_path)
+      getSupabase()
+        .storage.from("license-photos")
+        .createSignedUrl(b.license_path, 600)
+        .then(({ data }) => setLicense(data?.signedUrl ?? null));
     if (b.payment_proof_path)
       getSupabase()
         .storage.from("payment-proofs")
@@ -273,6 +276,11 @@ function BookingSheet({ booking: b, onClose, onChanged }: { booking: Booking | n
               {b.status === "picked_up" && new Date(b.return_at).getTime() < Date.now() && <strong className="text-red-700"> · overdue</strong>}
             </p>
             <p>{b.delivery ? <>Deliver to: <strong>{b.delivery_address}</strong></> : "Customer picks up"}</p>
+            {b.with_driver && (
+              <p className="rounded-xl bg-sky-50 px-3 py-2 font-semibold text-sky-900" data-testid="booking-with-driver">
+                🚗 With driver · {formatPeso(b.driver_fee ?? 0)} driver fee (no license needed)
+              </p>
+            )}
             {b.notes && <p className="rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Note: {b.notes}</p>}
             <dl className="space-y-0.5 border-t border-coffee-100 pt-2">
               <div className="flex justify-between">
@@ -316,7 +324,9 @@ function BookingSheet({ booking: b, onClose, onChanged }: { booking: Booking | n
           </div>
           <div>
             <p className="label">Driver&apos;s license</p>
-            {license ? (
+            {!b.license_path ? (
+              <p className="text-sm text-coffee-700">Not needed — booked with our driver.</p>
+            ) : license ? (
               <a href={license} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={license} alt={`Driver's license of ${b.customer_name}`} className="w-full rounded-2xl border border-coffee-200 object-contain" data-testid="license-photo" />
@@ -540,7 +550,10 @@ function CalendarTab() {
 }
 
 // ---------------------------------------------------------------- scooters
-const EMPTY_SCOOTER = { name: "", description: "", daily_rate: "", security_deposit: "", units: "1", photo_url: null as string | null, is_active: true, sort_order: 0 };
+const EMPTY_SCOOTER = {
+  name: "", description: "", daily_rate: "", security_deposit: "", units: "1", photo_url: null as string | null, is_active: true, sort_order: 0,
+  vehicle_type: "scooter" as "scooter" | "car", seats: "", transmission: "" as "" | "automatic" | "manual", fuel: "" as "" | "gasoline" | "diesel" | "electric" | "hybrid", driver_fee: "",
+};
 function ScootersTab() {
   const [list, setList] = useState<Scooter[] | null>(null);
   const [edit, setEdit] = useState<(typeof EMPTY_SCOOTER & { id?: string }) | null>(null);
@@ -565,7 +578,15 @@ function ScootersTab() {
     const units = Number(edit.units);
     if (!Number.isInteger(units) || units < 1 || units > 50) return setMsg({ tone: "red", text: "Number of units must be a whole number from 1 to 50." });
     setBusy(true);
-    const row = { name: edit.name.trim(), description: edit.description.trim() || null, daily_rate: rate, security_deposit: sec, units, photo_url: edit.photo_url, is_active: edit.is_active, sort_order: Number(edit.sort_order) || 0 };
+    const isCar = edit.vehicle_type === "car";
+    const seats = isCar && edit.seats.trim() ? Number(edit.seats) : null;
+    if (seats !== null && (!Number.isInteger(seats) || seats < 1 || seats > 30)) return setMsg({ tone: "red", text: "Seats must be a whole number from 1 to 30." });
+    const driverFee = isCar && edit.driver_fee.trim() ? Number(edit.driver_fee) : null;
+    if (driverFee !== null && (!Number.isFinite(driverFee) || driverFee < 0)) return setMsg({ tone: "red", text: "Driver fee must be 0 or more (empty = self-drive only)." });
+    const row = {
+      name: edit.name.trim(), description: edit.description.trim() || null, daily_rate: rate, security_deposit: sec, units, photo_url: edit.photo_url, is_active: edit.is_active, sort_order: Number(edit.sort_order) || 0,
+      vehicle_type: edit.vehicle_type, seats, transmission: isCar ? edit.transmission || null : null, fuel: isCar ? edit.fuel || null : null, driver_fee: driverFee,
+    };
     const { error } = edit.id ? await getSupabase().from("scooters").update(row).eq("id", edit.id) : await getSupabase().from("scooters").insert(row);
     setBusy(false);
     if (error) return setMsg({ tone: "red", text: error.message });
@@ -590,31 +611,48 @@ function ScootersTab() {
     <section className="space-y-3">
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
       <button className="btn-primary" onClick={() => setEdit({ ...EMPTY_SCOOTER, sort_order: list.length })}>
-        + Add scooter
+        + Add vehicle
       </button>
       {list.length === 0 && <p className="card p-6 text-center text-coffee-700">No scooters yet. Add your first one — customers can only book scooters listed here.</p>}
       <ul className="grid gap-2">
         {list.map((s) => (
           <li key={s.id} className="card flex items-center gap-3 p-3" data-testid="scooter-row">
-            <ScooterPhoto src={s.photo_url} alt={s.name} className="h-16 w-16 shrink-0 rounded-xl" />
+            <ScooterPhoto car={s.vehicle_type === "car"} src={s.photo_url} alt={s.name} className="h-16 w-16 shrink-0 rounded-xl" />
             <span className="min-w-0 flex-1">
-              <span className="block font-bold">{s.name}</span>
+              <span className="block font-bold">
+                {s.vehicle_type === "car" ? "🚗 " : "🛵 "}
+                {s.name}
+              </span>
               <span className="block text-sm text-coffee-700">
+                {s.vehicle_type === "car" && carSpecs(s) ? `${carSpecs(s)} · ` : ""}
+                {s.vehicle_type === "car" ? (s.driver_fee != null ? `driver +${formatPeso(s.driver_fee)}/day · ` : "self-drive only · ") : ""}
                 {formatPeso(s.daily_rate)}/day · {s.units} unit{s.units === 1 ? "" : "s"}
                 {s.security_deposit != null ? ` · ${formatPeso(s.security_deposit)} security deposit` : ""}
                 {s.description ? ` · ${s.description}` : ""}
               </span>
             </span>
             {!s.is_active && <Badge tone="gray">Hidden</Badge>}
-            <button className="btn-secondary btn-sm" onClick={() => setEdit({ id: s.id, name: s.name, description: s.description ?? "", daily_rate: String(s.daily_rate), security_deposit: s.security_deposit == null ? "" : String(s.security_deposit), units: String(s.units ?? 1), photo_url: s.photo_url, is_active: s.is_active, sort_order: s.sort_order })}>
+            <button className="btn-secondary btn-sm" onClick={() =>
+                setEdit({
+                  id: s.id, name: s.name, description: s.description ?? "", daily_rate: String(s.daily_rate), security_deposit: s.security_deposit == null ? "" : String(s.security_deposit), units: String(s.units ?? 1), photo_url: s.photo_url, is_active: s.is_active, sort_order: s.sort_order,
+                  vehicle_type: s.vehicle_type ?? "scooter", seats: s.seats == null ? "" : String(s.seats), transmission: s.transmission ?? "", fuel: s.fuel ?? "", driver_fee: s.driver_fee == null ? "" : String(s.driver_fee),
+                })
+              }>
               Edit
             </button>
           </li>
         ))}
       </ul>
-      <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit scooter" : "Add scooter"}>
+      <Sheet open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? `Edit ${edit.vehicle_type === "car" ? "car" : "scooter"}` : "Add vehicle"}>
         {edit && (
           <form onSubmit={save} className="space-y-3 p-5">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-coffee-100 p-1" role="radiogroup" aria-label="Vehicle type">
+              {(["scooter", "car"] as const).map((v) => (
+                <button key={v} type="button" role="radio" aria-checked={edit.vehicle_type === v} onClick={() => setEdit({ ...edit, vehicle_type: v })} className={`min-h-[44px] rounded-xl font-semibold ${edit.vehicle_type === v ? "bg-white shadow" : "text-coffee-700"}`}>
+                  {v === "car" ? "🚗 Car" : "🛵 Scooter"}
+                </button>
+              ))}
+            </div>
             <div>
               <label className="label" htmlFor="scooter-name">
                 Name
@@ -647,8 +685,47 @@ function ScootersTab() {
               <input id="scooter-units" className="input" inputMode="numeric" value={edit.units} onChange={(e) => setEdit({ ...edit, units: e.target.value })} placeholder="1" />
               <p className="hint">How many of this scooter you have. That many customers can book it for the same dates; it shows as Booked only when all are taken.</p>
             </div>
+            {edit.vehicle_type === "car" && (
+              <div className="grid gap-3 rounded-2xl border border-coffee-100 p-3 sm:grid-cols-2" data-testid="car-fields">
+                <div>
+                  <label className="label" htmlFor="car-seats">
+                    Seats
+                  </label>
+                  <input id="car-seats" className="input" inputMode="numeric" value={edit.seats} onChange={(e) => setEdit({ ...edit, seats: e.target.value })} placeholder="5" />
+                </div>
+                <div>
+                  <label className="label" htmlFor="car-transmission">
+                    Transmission
+                  </label>
+                  <select id="car-transmission" className="input" value={edit.transmission} onChange={(e) => setEdit({ ...edit, transmission: e.target.value as typeof edit.transmission })}>
+                    <option value="">—</option>
+                    <option value="automatic">Automatic</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="car-fuel">
+                    Fuel
+                  </label>
+                  <select id="car-fuel" className="input" value={edit.fuel} onChange={(e) => setEdit({ ...edit, fuel: e.target.value as typeof edit.fuel })}>
+                    <option value="">—</option>
+                    <option value="gasoline">Gasoline</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="electric">Electric</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="car-driver-fee">
+                    Driver fee per day (₱)
+                  </label>
+                  <input id="car-driver-fee" className="input" inputMode="decimal" value={edit.driver_fee} onChange={(e) => setEdit({ ...edit, driver_fee: e.target.value })} placeholder="Empty = self-drive only" />
+                </div>
+                <p className="hint sm:col-span-2">With a driver fee, customers can book &ldquo;with a driver&rdquo; (no license needed); the fee is added per day.</p>
+              </div>
+            )}
             <div className="flex items-center gap-3">
-              <ScooterPhoto src={edit.photo_url} alt="" className="h-20 w-20 rounded-xl" />
+              <ScooterPhoto car={edit.vehicle_type === "car"} src={edit.photo_url} alt="" className="h-20 w-20 rounded-xl" />
               <label className="btn-secondary btn-sm cursor-pointer">
                 {busy ? <Spinner /> : edit.photo_url ? "Change photo" : "Add photo"}
                 <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Scooter photo" onChange={(e) => photo(e.target.files?.[0])} />
@@ -659,7 +736,7 @@ function ScootersTab() {
               <Toggle checked={edit.is_active} onChange={(v) => setEdit({ ...edit, is_active: v })} label="Show on the booking page" />
             </label>
             <button className="btn-primary w-full" disabled={busy}>
-              {busy ? <Spinner /> : "Save scooter"}
+              {busy ? <Spinner /> : edit.vehicle_type === "car" ? "Save car" : "Save scooter"}
             </button>
             <p className="hint">Price changes apply to new bookings only. To stop renting a scooter, hide it instead of deleting (past bookings keep it).</p>
           </form>

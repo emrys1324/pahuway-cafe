@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import { formatPeso } from "@/lib/format";
 import type { Listing } from "@/components/customer/ListingCard";
+import { carSpecs } from "@/lib/rentals";
 
 export type HubCategory = "food" | "scooters" | "cars" | "stays" | "tours";
 export const HUB_CATEGORIES: { id: HubCategory; label: string; emoji: string; soon: boolean }[] = [
@@ -16,9 +17,16 @@ export const HUB_CATEGORIES: { id: HubCategory; label: string; emoji: string; so
 export interface HubData {
   food: (Listing & { category: string })[];
   scooters: Listing[];
+  cars: Listing[];
   categories: { id: string; name: string }[];
   minFood: number | null;
   minRate: number | null;
+  minCarRate: number | null;
+}
+
+/** Categories with "soon" decided by what's actually listed (Cars opens once a car is switched on). */
+export function hubCategories(hub: HubData | null) {
+  return HUB_CATEGORIES.map((c) => (c.id === "cars" ? { ...c, soon: !hub || hub.cars.length === 0 } : c));
 }
 
 /** Everything bookable, as listing cards: menu items (Pahuway Cafe) and scooters (Baybayin). */
@@ -29,12 +37,15 @@ export function useHubListings(): HubData | null {
     Promise.all([
       sb.from("menu_categories").select("id, name").eq("is_active", true).order("sort_order"),
       sb.from("menu_items").select("id, name, price, photo_url, is_sold_out, category_id").eq("is_active", true).order("sort_order").order("name"),
-      sb.from("scooters").select("id, name, daily_rate, photo_url").eq("is_active", true).order("sort_order").order("name"),
+      sb.from("scooters").select("id, name, daily_rate, photo_url, vehicle_type, seats, transmission, fuel, driver_fee").eq("is_active", true).order("sort_order").order("name"),
     ]).then(([c, m, s]) => {
       const cats = (c.data as { id: string; name: string }[]) ?? [];
       const catName = new Map(cats.map((x) => [x.id, x.name]));
       const items = (m.data as { id: string; name: string; price: number; photo_url: string | null; is_sold_out: boolean; category_id: string }[]) ?? [];
-      const scooters = (s.data as { id: string; name: string; daily_rate: number; photo_url: string | null }[]) ?? [];
+      type V = { id: string; name: string; daily_rate: number; photo_url: string | null; vehicle_type: string | null; seats: number | null; transmission: "automatic" | "manual" | null; fuel: "gasoline" | "diesel" | "electric" | "hybrid" | null; driver_fee: number | null };
+      const vehicles = (s.data as V[]) ?? [];
+      const scooters = vehicles.filter((v) => (v.vehicle_type ?? "scooter") === "scooter");
+      const cars = vehicles.filter((v) => v.vehicle_type === "car");
       const available = items.filter((i) => !i.is_sold_out);
       setData({
         categories: cats,
@@ -62,6 +73,17 @@ export function useHubListings(): HubData | null {
         })),
         minFood: available.length ? Math.min(...available.map((i) => Number(i.price))) : null,
         minRate: scooters.length ? Math.min(...scooters.map((x) => Number(x.daily_rate))) : null,
+        cars: cars.map((x) => ({
+          kind: "car" as const,
+          id: x.id,
+          href: `/baybayin?type=car&scooter=${x.id}`,
+          title: x.name,
+          subtitle: [carSpecs(x) || "Car", x.driver_fee != null ? "with or without driver" : "self-drive"].join(" · "),
+          price: `From ${formatPeso(x.daily_rate)} / day`,
+          photo: x.photo_url,
+          emoji: "🚗",
+        })),
+        minCarRate: cars.length ? Math.min(...cars.map((x) => Number(x.daily_rate))) : null,
       });
     });
   }, []);

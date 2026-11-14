@@ -7,7 +7,7 @@ import { HubSearch } from "@/components/customer/HubParts";
 import { ListingCard } from "@/components/customer/ListingCard";
 import { PageLoader } from "@/components/ui";
 import { useFavourites } from "@/lib/favourites";
-import { HUB_CATEGORIES, useHubListings, type HubCategory } from "@/lib/hub";
+import { hubCategories, useHubListings, type HubCategory } from "@/lib/hub";
 import { useStoreSettings } from "@/lib/store-settings";
 
 type Filter = "all" | HubCategory | "saved";
@@ -27,17 +27,18 @@ export function ExploreScreen() {
   const hub = useHubListings();
   const fav = useFavourites();
 
-  const all = useMemo(() => (hub ? [...hub.food, ...hub.scooters] : []), [hub]);
+  const all = useMemo(() => (hub ? [...hub.food, ...hub.cars, ...hub.scooters] : []), [hub]);
   const results = useMemo(() => {
     let list = all;
     if (cat === "food") list = hub?.food ?? [];
     else if (cat === "scooters") list = hub?.scooters ?? [];
+    else if (cat === "cars") list = hub?.cars ?? [];
     else if (cat === "saved") list = all.filter((l) => fav.has(l.kind, l.id));
     else if (cat !== "all") list = [];
     if (q) {
       const words = q.toLowerCase().split(/\s+/);
       list = list.filter((l) => {
-        const hay = `${l.title} ${l.subtitle} ${"category" in l ? (l as { category: string }).category : ""} ${l.kind === "scooter" ? "scooter scooters motorbike motor rental rent ride" : ""}`.toLowerCase();
+        const hay = `${l.title} ${l.subtitle} ${"category" in l ? (l as { category: string }).category : ""} ${l.kind === "scooter" ? "scooter scooters motorbike motor rental rent ride" : l.kind === "car" ? "car cars rental rent drive driver" : ""}`.toLowerCase();
         return words.every((w) => hay.includes(w));
       });
     }
@@ -50,7 +51,7 @@ export function ExploreScreen() {
     if (c !== "all") sp.set("cat", c);
     router.replace(`/explore${sp.toString() ? "?" + sp.toString() : ""}`);
   };
-  const chips: { id: Filter; label: string }[] = [{ id: "all", label: "All" }, ...HUB_CATEGORIES.map((c) => ({ id: c.id as Filter, label: `${c.emoji} ${c.label}` })), { id: "saved", label: "♡ Saved" }];
+  const chips: { id: Filter; label: string }[] = [{ id: "all", label: "All" }, ...hubCategories(hub).map((c) => ({ id: c.id as Filter, label: `${c.emoji} ${c.label}` })), { id: "saved", label: "♡ Saved" }];
 
   return (
     <div className="min-h-screen pb-6">
@@ -75,10 +76,10 @@ export function ExploreScreen() {
 
         {!hub ? (
           <PageLoader />
-        ) : SOON[cat] ? (
+        ) : SOON[cat] && !(cat === "cars" && hub.cars.length > 0) ? (
           <section className="card p-6 text-center" data-testid="coming-soon">
             <p className="text-4xl" aria-hidden>
-              {HUB_CATEGORIES.find((c) => c.id === cat)?.emoji}
+              {hubCategories(hub).find((c) => c.id === cat)?.emoji}
             </p>
             <p className="mt-2 font-display text-xl font-bold">Coming soon</p>
             <p className="text-coffee-700">{SOON[cat]}</p>

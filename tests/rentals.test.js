@@ -95,9 +95,9 @@ async function payGcash(page) {
   await admin.waitForURL(BASE + "/admin");
   await admin.getByRole("link", { name: "Rentals", exact: true }).click();
   await admin.getByRole("heading", { name: "Baybayin rentals" }).waitFor();
-  await admin.getByRole("tab", { name: "scooters" }).click();
+  await admin.getByRole("tab", { name: "vehicles" }).click();
   for (const [n, rate, desc] of [["Honda Click 125", "500", "Automatic · good for 2"], ["Yamaha Mio", "400", "Light and easy"]]) {
-    await admin.getByRole("button", { name: "+ Add scooter" }).click();
+    await admin.getByRole("button", { name: "+ Add vehicle" }).click();
     await admin.locator("#scooter-name").fill(n);
     await admin.locator("#scooter-desc").fill(desc);
     await admin.locator("#scooter-rate").fill(rate);
@@ -380,7 +380,7 @@ async function payGcash(page) {
   await admin.keyboard.press("Escape");
 
   // ---------- number of units ----------
-  await admin.getByRole("tab", { name: "scooters" }).click();
+  await admin.getByRole("tab", { name: "vehicles" }).click();
   await admin.getByTestId("scooter-row").filter({ hasText: "Yamaha Mio" }).getByRole("button", { name: "Edit" }).click();
   await admin.locator("#scooter-units").fill("0");
   await admin.getByRole("button", { name: "Save scooter" }).click();
