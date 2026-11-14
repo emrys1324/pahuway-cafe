@@ -1,17 +1,18 @@
-import { headerTheme, isHex } from "@/lib/color";
+import { headerTheme, isHex, rgba } from "@/lib/color";
 
 /**
  * Welcome banner on the home page. With a banner colour it shows that exact colour (no darkening) and picks
  * white or dark text for contrast; otherwise it shows the welcome photo under a dark gradient with white text.
  */
-export function WelcomeBanner({ color, photo, title, subtitle }: { color?: string | null; photo?: string | null; title: string; subtitle?: string | null }) {
+export function WelcomeBanner({ color, photo, title, subtitle, textColor }: { color?: string | null; photo?: string | null; title: string; subtitle?: string | null; textColor?: string | null }) {
   const solid = isHex(color) ? headerTheme(color) : null;
+  const custom = isHex(textColor) ? textColor : null; // empty = automatic
   return (
     <section
       data-testid="hero"
       data-banner={solid ? "colour" : "photo"}
       className={`relative isolate overflow-hidden rounded-3xl shadow-lg ${solid ? "" : "bg-coffee-900 text-white"}`}
-      style={solid ? { background: solid.bg, color: solid.fg } : undefined}
+      style={{ ...(solid ? { background: solid.bg, color: solid.fg } : {}), ...(custom ? { color: custom } : {}) }}
     >
       {!solid && photo && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -24,7 +25,7 @@ export function WelcomeBanner({ color, photo, title, subtitle }: { color?: strin
             {title}
           </h1>
           {subtitle && (
-            <p data-testid="welcome-subtitle" className={`text-base sm:text-lg ${solid ? "" : "text-white/90 drop-shadow"}`} style={solid ? { color: solid.muted } : undefined}>
+            <p data-testid="welcome-subtitle" className={`text-base sm:text-lg ${solid || custom ? "" : "text-white/90 drop-shadow"} ${!solid ? "drop-shadow" : ""}`} style={custom ? { color: rgba(custom, 0.9) } : solid ? { color: solid.muted } : undefined}>
               {subtitle}
             </p>
           )}

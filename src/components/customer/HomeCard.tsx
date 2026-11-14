@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { headerTheme, isHex } from "@/lib/color";
+import { headerTheme, isHex, rgba } from "@/lib/color";
 
 export const HOME_CARD_DEFAULTS = { cafe: "#432c1d", bay: "#075985" } as const;
 
@@ -15,6 +15,7 @@ export interface HomeCardProps {
   title: string;
   text?: string | null;
   status: string;
+  textColor?: string | null; // empty = automatic (white or dark for readability)
 }
 
 /** One of the two big Home cards ("Order food & drinks" / "Book a scooter"). Text colour adapts to the background. */
@@ -22,8 +23,9 @@ export function HomeCard(p: HomeCardProps) {
   const bg = isHex(p.color) ? p.color : p.fallbackColor;
   const theme = headerTheme(bg);
   const light = !!p.bgUrl || theme.dark; // photo backgrounds are darkened → light text
-  const fg = p.bgUrl ? "#ffffff" : theme.fg;
-  const muted = p.bgUrl ? "rgba(255,255,255,0.85)" : theme.muted;
+  const custom = isHex(p.textColor) ? p.textColor : null;
+  const fg = custom ?? (p.bgUrl ? "#ffffff" : theme.fg);
+  const muted = custom ? rgba(custom, 0.85) : p.bgUrl ? "rgba(255,255,255,0.85)" : theme.muted;
   const className = `group relative isolate flex flex-col gap-3 overflow-hidden rounded-3xl p-4 shadow-lg transition-[transform,box-shadow] sm:p-5 ${p.href ? "hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coffee-800" : ""}`;
   const inner = (
     <>

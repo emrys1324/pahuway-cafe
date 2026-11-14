@@ -57,6 +57,9 @@ export interface StoreSettings {
   home_bay_bg_url?: string | null;
   cash_after_orders?: number;
   welcome_banner_color?: string | null;
+  welcome_banner_text_color?: string | null;
+  home_cafe_text_color?: string | null;
+  home_bay_text_color?: string | null;
 }
 
 export interface Category {

@@ -26,7 +26,7 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const rgba = (hex: string, a: number) => {
+export const rgba = (hex: string, a: number) => {
   const [r, g, b] = rgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
