@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { StoreHeader } from "./Header";
 import { HomeShortcuts } from "./HomeShortcuts";
 import { HOME_CARD_DEFAULTS, HomeCard } from "./HomeCard";
+import { WelcomeBanner } from "./WelcomeBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { Badge } from "@/components/ui";
 import { useFirstName } from "@/lib/use-first-name";
@@ -67,26 +68,8 @@ export function HomeChooser() {
     <div className="min-h-screen pb-10">
       <StoreHeader settings={settings} open={open} brand="site" />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:py-8">
-        {/* Hero */}
-        <section data-testid="hero" className="relative isolate overflow-hidden rounded-3xl bg-coffee-900 text-white shadow-lg">
-          {hero && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero} alt="" data-testid="hero-photo" className="absolute inset-0 -z-10 h-full w-full object-cover" />
-          )}
-          <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
-          <div className="flex min-h-[110px] flex-col justify-end gap-1 px-5 py-4 sm:min-h-[140px] sm:px-8 sm:py-5">
-            <div>
-              <h1 data-testid="welcome-title" className="font-display text-3xl font-bold leading-tight drop-shadow sm:text-4xl">
-                {firstName ? `Welcome, ${firstName}!` : t.title}
-              </h1>
-              {t.subtitle && (
-                <p data-testid="welcome-subtitle" className="text-base text-white/90 drop-shadow sm:text-lg">
-                  {t.subtitle}
-                </p>
-              )}
-            </div>
-          </div>
-        </section>
+        {/* Welcome banner: exact colour if one is set in Settings, else the welcome photo */}
+        <WelcomeBanner color={settings?.welcome_banner_color} photo={hero} title={firstName ? `Welcome, ${firstName}!` : t.title} subtitle={t.subtitle} />
 
         {/* The two main actions, right under the welcome header */}
         <nav aria-label="What would you like to do?" className="grid grid-cols-2 gap-3 sm:gap-4" data-testid="main-actions">

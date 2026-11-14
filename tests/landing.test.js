@@ -128,6 +128,31 @@ const PASS = "Kape-sa-umaga-1";
     await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=choose-cafe]")).backgroundColor === "rgb(67, 44, 29)", null, { timeout: 8000 });
     assert((await g.getByTestId("choose-scooter").getByTestId("home-card-bg").count()) === 0, "Home: default café brown and no scooter photo again");
 
+    // ---- Welcome banner colour: exact colour, no darkening, readable text
+    await admin.getByRole("checkbox", { name: "Use a banner colour instead of a photo" }).check();
+    await admin.getByTestId("banner-colour").locator("#welcome-banner-color").fill("#ed967b");
+    const prev = await admin.getByTestId("banner-preview").getByTestId("hero").evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color, !!el.querySelector("[data-testid=hero-photo]")]);
+    assert(prev[0] === "rgb(237, 150, 123)" && prev[1] === "rgb(46, 30, 20)" && !prev[2], "Settings preview: the banner shows the exact peach colour with dark text and no photo");
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    assert(sql("select welcome_banner_color from store_settings") === "#ed967b", "banner colour saved");
+    await g.goto(BASE + "/");
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=hero]")).backgroundColor === "rgb(237, 150, 123)", null, { timeout: 8000 });
+    const live = await g.getByTestId("hero").evaluate((el) => [getComputedStyle(el).color, el.querySelectorAll("img, [aria-hidden]").length]);
+    assert(live[0] === "rgb(46, 30, 20)" && live[1] === 0, "Home: banner is exactly #ED967B (no photo, no darkening overlay) with dark text");
+    await admin.getByTestId("banner-colour").getByRole("button", { name: "Use colour #432c1d" }).click();
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    await g.reload();
+    await g.waitForFunction(() => getComputedStyle(document.querySelector("[data-testid=hero]")).backgroundColor === "rgb(67, 44, 29)", null, { timeout: 8000 });
+    assert((await g.getByTestId("hero").evaluate((el) => getComputedStyle(el).color)) === "rgb(251, 247, 240)", "a dark banner colour switches the text to light");
+    await admin.getByRole("checkbox", { name: "Use a banner colour instead of a photo" }).uncheck();
+    await admin.getByRole("button", { name: "Save settings" }).click();
+    await admin.getByText("Settings saved.").waitFor();
+    await g.reload();
+    await g.getByTestId("hero-photo").waitFor({ timeout: 8000 });
+    assert(sql("select coalesce(welcome_banner_color, '') from store_settings") === "", "unticking goes back to the welcome photo");
+
     // ---- hero photo from Settings
     sql("update store_settings set hero_url = '/menu/latte.svg'");
     await g.goto(BASE + "/");
@@ -165,7 +190,7 @@ const PASS = "Kape-sa-umaga-1";
     console.log("ALL LANDING PAGE CHECKS PASSED");
   } finally {
     sql("update menu_items set is_sold_out = false where name = 'Americano'");
-    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null");
+    sql("update store_settings set hero_url = null, location_text = null, location_map_url = null, home_cafe_color = null, home_cafe_logo_url = null, home_cafe_bg_url = null, home_bay_color = null, home_bay_logo_url = null, home_bay_bg_url = null, welcome_banner_color = null");
     await browser.close();
   }
 })().catch((e) => {
