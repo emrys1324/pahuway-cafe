@@ -17,7 +17,7 @@ const PASS = "Kape-sa-umaga-1";
 
 (async () => {
   sql(`delete from auth.users where email = '${PHONE}@phone.invalid'`);
-  sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59'");
+  sql("update store_settings set cash_after_orders = 0, is_open = true, open_time = '00:00', close_time = '23:59'");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.')");
   sql("update menu_items set is_sold_out = false where name = 'Americano'");
   const res = await fetch(BASE + "/api/account/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Nina Nav", phone: PHONE, password: PASS }) });

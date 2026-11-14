@@ -29,7 +29,7 @@ async function addAmericanoAndCheckout(page) {
 }
 
 (async () => {
-  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
+  sql("update store_settings set require_account = false, cash_after_orders = 0"); // guest orders/bookings (the sign-in gate has its own test)
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59'");
   sql("delete from order_items; delete from orders;");
   const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });

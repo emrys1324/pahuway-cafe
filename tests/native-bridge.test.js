@@ -76,9 +76,9 @@ async function appPage(browser, opts, device = devices["Pixel 7"]) {
 const calls = (p) => p.evaluate(() => window.__nativeCalls);
 
 (async () => {
-  sql("update store_settings set require_account = false"); // guest orders/bookings (the sign-in gate has its own test)
   const { execFileSync } = require("child_process");
   const sql = (q) => execFileSync("docker", ["exec", "-i", "supabase_db_pahuway-cafe", "psql", "-U", "postgres", "-Atc", q]).toString().trim();
+  sql("update store_settings set require_account = false, cash_after_orders = 0"); // guest orders/bookings (the sign-in gate has its own test)
   sql("delete from push_tokens; update store_settings set open_time='00:00', close_time='00:00', is_open=true;");
   const browser = await chromium.launch();
 
@@ -111,6 +111,7 @@ const calls = (p) => p.evaluate(() => window.__nativeCalls);
   await cust.getByRole("button", { name: /^Add · / }).click();
   await cust.getByRole("button", { name: /View cart/ }).click();
   await cust.getByRole("link", { name: "Checkout" }).click();
+  await cust.getByRole("radio", { name: /Pickup/ }).click(); // Delivery is the default now
   await cust.fill("#name", "App Guest");
   await cust.fill("#phone", "09171112222");
   await cust.getByRole("button", { name: /Place order/ }).click();
@@ -125,9 +126,9 @@ const calls = (p) => p.evaluate(() => window.__nativeCalls);
 
   // 3. Android build WITHOUT Firebase: never touches the push plugin (would crash), hides Notify me
   const nofb = await appPage(browser, { pushEnabled: false, token: "x" });
-  await nofb.goto(BASE + "/rider");
-  await nofb.fill("#email", "rider@pahuway.cafe");
-  await nofb.fill("#password", "ChangeMe-Rider-2026");
+  await nofb.goto(BASE + "/rider/login");
+  await nofb.fill("#rider-email", "rider@pahuway.cafe");
+  await nofb.fill("#rider-password", "ChangeMe-Rider-2026");
   await nofb.click("button:has-text('Sign in')");
   await nofb.waitForURL(BASE + "/rider");
   await nofb.getByRole("heading", { name: "My deliveries" }).waitFor();

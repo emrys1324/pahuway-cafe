@@ -55,6 +55,7 @@ export interface StoreSettings {
   home_bay_color?: string | null;
   home_bay_logo_url?: string | null;
   home_bay_bg_url?: string | null;
+  cash_after_orders?: number;
 }
 
 export interface Category {

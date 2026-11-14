@@ -1,6 +1,6 @@
 -- Scenario tests for scooter rentals (0011 + 0012 + 0014): GCash receipt deposit, terms, pickup only, times, calendar.
 \set ON_ERROR_STOP 1
-update store_settings set require_account = false;  -- guest scenarios; the sign-in rule is tested on its own
+update store_settings set require_account = false, cash_after_orders = 0;  -- guest scenarios; the sign-in and cash rules are tested on their own
 create or replace function pg_temp.expect_error(sql text, needle text) returns void language plpgsql as $$
 begin
   begin execute sql;
@@ -208,7 +208,7 @@ set role authenticated; select pg_temp.as_user('c0000000-0000-0000-0000-00000000
 create temp table own on commit preserve rows as select book_scooter(pg_temp.req('a1000000-0000-0000-0000-000000000001', 800, 824)) r;
 select pg_temp.check((select count(*) from rental_bookings) = 1 and (select customer_user_id from rental_bookings) = 'c0000000-0000-0000-0000-000000000001', 'signed-in customer books; the booking is linked to their account and they see only their own');
 reset role; select pg_temp.as_user('');
-update store_settings set require_account = false;
+update store_settings set require_account = false, cash_after_orders = 0;
 
 -- inbox messages for the customer's booking: received → confirmed → cancelled (+ refund); guests' bookings get none
 update rental_bookings set status = 'confirmed' where customer_user_id = 'c0000000-0000-0000-0000-000000000001';

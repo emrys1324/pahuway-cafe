@@ -80,6 +80,7 @@ export function SettingsAdmin() {
         background_fade: Math.min(95, Math.max(40, Number(s.background_fade) || 85)),
         online_payments_enabled: !!s.online_payments_enabled,
         require_account: s.require_account !== false,
+        cash_after_orders: Math.min(50, Math.max(0, Math.round(Number(s.cash_after_orders ?? 3)) || 0)),
         hero_url: s.hero_url || null,
         home_cafe_color: isHex(s.home_cafe_color) ? s.home_cafe_color : null,
         home_cafe_logo_url: s.home_cafe_logo_url || null,
@@ -178,6 +179,23 @@ export function SettingsAdmin() {
               </span>
             </span>
           </label>
+        </section>
+
+        <section className="card space-y-2 p-5" data-testid="cash-rule">
+          <h2 className="section-title">Cash payments</h2>
+          <label className="label" htmlFor="cash-after">
+            Allow cash after this many completed orders
+          </label>
+          <input
+            id="cash-after"
+            type="number"
+            min={0}
+            max={50}
+            className="input w-32"
+            value={s.cash_after_orders ?? 3}
+            onChange={(e) => set("cash_after_orders", e.target.value as unknown as number)}
+          />
+          <p className="hint">New customers pay by GCash until they have this many completed orders; then Cash on delivery / pickup unlocks. 0 = cash for everyone.</p>
         </section>
 
         <OnlinePaymentsSection enabled={!!s.online_payments_enabled} onChange={(v) => set("online_payments_enabled", v)} />
