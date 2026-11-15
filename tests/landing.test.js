@@ -84,7 +84,10 @@ const PASS = "Kape-sa-umaga-1";
 
     // ---- the two cards live in their categories; Tours → Notify me
     await g.getByTestId("cat-food").click();
-    await g.waitForURL(BASE + "/explore?cat=food");
+    await g.waitForURL(BASE + "/food");
+    await g.getByTestId("store-pahuway-cafe").waitFor();
+    assert(true, "the Food delivery card opens the list of food stores");
+    await g.goto(BASE + "/explore?cat=food");
     await g.getByTestId("choose-cafe").getByText("Order food & drinks").waitFor();
     assert((await g.getByTestId("choose-cafe").boundingBox()).y < (await g.getByTestId("results").boundingBox()).y, "Food category: the Order food & drinks card sits above the menu items");
     await g.getByTestId("choose-cafe").click();

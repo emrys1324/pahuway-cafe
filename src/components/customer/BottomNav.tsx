@@ -61,13 +61,13 @@ export function BottomNav() {
   }, [hidden]);
 
   if (hidden) return null;
-  const isFood = path.startsWith("/menu") || (path.startsWith("/explore") && search.includes("cat=food"));
+  const isFood = path.startsWith("/menu") || path.startsWith("/food") || (path.startsWith("/explore") && search.includes("cat=food"));
   const isRentals = (path.startsWith("/baybayin") && !path.startsWith("/baybayin/booking")) || (path.startsWith("/explore") && search.includes("cat=rentals"));
   const tabs = [
     { href: "/", label: "Home", active: path === "/" || path.startsWith("/tours") || (path.startsWith("/explore") && !isFood && !isRentals), icon: HomeIcon },
     { href: "/stays", label: "Stays", active: path.startsWith("/stays") && !path.startsWith("/stays/booking"), icon: StaysIcon },
     { href: "/explore?cat=rentals", label: "Rentals", active: isRentals, icon: RentalsIcon },
-    { href: "/explore?cat=food", label: "Food", active: isFood, icon: FoodIcon },
+    { href: "/food", label: "Food", active: isFood, icon: FoodIcon },
     { href: "/activity", label: "Trips", active: path.startsWith("/activity") || path.startsWith("/order/") || path.startsWith("/baybayin/booking") || path.startsWith("/stays/booking"), icon: TripsIcon },
   ];
   return (

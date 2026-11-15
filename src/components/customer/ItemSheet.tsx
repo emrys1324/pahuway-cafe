@@ -26,13 +26,16 @@ export function ItemSheet({
   groups,
   canOrder,
   onClose,
+  store,
 }: {
   item: MenuItem | null;
   groups: Record<string, OptionGroup>;
   canOrder: boolean;
   onClose: () => void;
+  /** the store this item is from; adding it to a cart from another store starts a new cart */
+  store?: { slug: string; name: string };
 }) {
-  const { add } = useCart();
+  const { add, clear, store: cartStore } = useCart();
   const itemGroups = useMemo(
     () =>
       (item?.menu_item_option_groups ?? [])
@@ -85,7 +88,13 @@ export function ItemSheet({
       document.getElementById(`grp-${missing[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    if (cartStore && store && cartStore.slug !== store.slug) {
+      if (!window.confirm(`Your cart has items from ${cartStore.name}. Start a new cart with ${store.name}? (One store per order.)`)) return;
+      clear();
+    }
     add({
+      store_slug: store?.slug ?? "pahuway-cafe",
+      store_name: store?.name ?? "Pahuway Cafe",
       menu_item_id: item.id,
       name: item.name,
       photo_url: item.photo_url,

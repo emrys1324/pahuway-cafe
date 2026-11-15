@@ -12,6 +12,7 @@ import { useCart, saveRecentOrder } from "@/lib/cart";
 import { formatPeso, friendlyError, normalizePhone } from "@/lib/format";
 import { formatClock, timeSlots } from "@/lib/hours";
 import { useStoreSettings } from "@/lib/store-settings";
+import { MAIN_STORE, storeHours, storeHref, storeOpenNow, storePrep, useStores } from "@/lib/stores";
 import type { OrderType, PaymentMethod, Zone } from "@/lib/types";
 import { MapPicker } from "@/components/map/MapPicker";
 import { StreetAutocomplete } from "@/components/map/StreetAutocomplete";
@@ -45,8 +46,14 @@ async function compressImage(file: File): Promise<Blob> {
 
 export function CheckoutScreen() {
   const router = useRouter();
-  const { lines, subtotal, clear, ready } = useCart();
-  const { settings, open } = useStoreSettings();
+  const { lines, subtotal, clear, ready, store: cartStore } = useCart();
+  const { settings, open: cafeOpen } = useStoreSettings();
+  const stores = useStores();
+  const storeSlug = cartStore?.slug ?? MAIN_STORE;
+  const isMain = storeSlug === MAIN_STORE;
+  const cstore = stores?.find((x) => x.slug === storeSlug) ?? null;
+  const open = isMain ? cafeOpen : storeOpenNow(cstore, settings);
+  const menuHref = storeHref(storeSlug);
   const { data: menu } = useMenu();
   const [zones, setZones] = useState<Zone[]>([]);
 
@@ -118,9 +125,10 @@ export function CheckoutScreen() {
     return () => URL.revokeObjectURL(url);
   }, [proof]);
 
-  const slots = useMemo(() => (settings ? timeSlots(settings) : []), [settings, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const slots = useMemo(() => (settings && isMain ? timeSlots(settings) : []), [settings, open, isMain]); // eslint-disable-line react-hooks/exhaustive-deps
   const sync = useAddressSync({ zones, zoneId, setZoneId, street, setStreet, landmark, setLandmark, pin, setPin });
   const zone = zones.find((z) => z.id === zoneId);
+  const prep = cstore ? storePrep(cstore, settings) : settings?.prep_minutes ?? 15;
   const fee = orderType === "delivery" && zone ? Number(zone.fee) : 0;
   const total = subtotal + fee;
   const minOrder = Number(settings?.min_delivery_order ?? 0);
@@ -141,14 +149,14 @@ export function CheckoutScreen() {
   if (lines.length === 0 && !done) {
     return (
       <div className="min-h-screen">
-        <StoreHeader settings={settings} open={open} back="/menu" />
+        <StoreHeader settings={settings} open={open} back={menuHref} />
         <div className="mx-auto max-w-lg px-4 py-16 text-center">
           <p className="text-5xl" aria-hidden>
             🛒
           </p>
           <h1 className="mt-3 font-display text-2xl font-bold">Your cart is empty</h1>
-          <Link href="/menu" className="btn-primary mt-6">
-            Browse the menu
+          <Link href="/food" className="btn-primary mt-6">
+            Browse food stores
           </Link>
         </div>
       </div>
@@ -160,7 +168,7 @@ export function CheckoutScreen() {
     if (!signedIn)
       return (
         <div className="min-h-screen">
-          <StoreHeader settings={settings} open={open} back="/menu" />
+          <StoreHeader settings={settings} open={open} back={menuHref} />
           <main className="mx-auto max-w-lg px-4 py-6">
             <SignInGate next="/checkout" what="order" />
           </main>
@@ -268,11 +276,22 @@ export function CheckoutScreen() {
 
   return (
     <div className="min-h-screen pb-36">
-      <StoreHeader settings={settings} open={open} back="/menu" />
+      <StoreHeader settings={settings} open={open} back={menuHref} />
       <form onSubmit={submit} noValidate className="mx-auto max-w-2xl space-y-5 px-4 py-5">
         <h1 className="font-display text-2xl font-bold">Checkout</h1>
+        {!isMain && cartStore && (
+          <p className="-mt-3 text-coffee-700" data-testid="checkout-store">
+            Your order from <strong>{cartStore.name}</strong>
+          </p>
+        )}
 
-        {!open && (
+        {!open && !isMain && cstore && (
+          <Alert tone="amber">
+            <p className="font-bold">{cstore.name} is closed right now.</p>
+            <p className="font-normal">Ordering opens at {storeHours(cstore, settings).split(" – ")[0]}.</p>
+          </Alert>
+        )}
+        {!open && isMain && (
           <Alert tone="amber">
             <p className="font-bold">We&apos;re closed right now.</p>
             <p className="font-normal">
@@ -328,7 +347,7 @@ export function CheckoutScreen() {
               </button>
             </div>
             {when === "asap" && (
-              <p className="hint">Usually ready in ~{settings.prep_minutes}–{settings.prep_minutes + (orderType === "delivery" ? 20 : 5)} minutes.</p>
+              <p className="hint">Usually ready in ~{prep}–{prep + (orderType === "delivery" ? 20 : 5)} minutes.</p>
             )}
             {when === "later" && (
               <div className="mt-3" data-error={!!errors.slot}>
@@ -500,7 +519,7 @@ export function CheckoutScreen() {
         <section className="card p-5" data-error={!!errors.items || !!errors.min}>
           <div className="flex items-center justify-between">
             <h2 className="section-title">Order summary</h2>
-            <Link href="/menu" className="text-sm font-semibold text-coffee-700 underline underline-offset-2">
+            <Link href={menuHref} className="text-sm font-semibold text-coffee-700 underline underline-offset-2">
               + Add more
             </Link>
           </div>

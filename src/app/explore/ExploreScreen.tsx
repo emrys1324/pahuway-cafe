@@ -107,6 +107,11 @@ export function ExploreScreen() {
           </div>
         )}
         {cat === "food" && <FoodCard />}
+        {cat === "food" && (
+          <Link href="/food" className="block text-right text-sm font-semibold text-orange-700 underline" data-testid="all-stores-link">
+            See all food stores →
+          </Link>
+        )}
         {cat === "rentals" && rtype !== "cars" && <ScooterCard minRate={hub?.minRate ?? null} />}
 
         {!hub ? (

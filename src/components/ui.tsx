@@ -131,7 +131,7 @@ export function Alert({ tone = "red", children }: { tone?: "red" | "amber" | "gr
 }
 
 /** Image with a warm placeholder when missing or broken. */
-export function ItemPhoto({ src, alt, className = "" }: { src: string | null; alt: string; className?: string }) {
+export function ItemPhoto({ src, alt, className = "", emoji = "☕" }: { src: string | null; alt: string; className?: string; emoji?: string }) {
   return (
     <div className={`overflow-hidden bg-coffee-100 ${className}`}>
       {src ? (
@@ -145,7 +145,7 @@ export function ItemPhoto({ src, alt, className = "" }: { src: string | null; al
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-3xl" aria-hidden>
-          ☕
+          {emoji}
         </div>
       )}
     </div>

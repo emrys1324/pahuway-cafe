@@ -75,8 +75,8 @@ export function HomeChooser() {
         <ListingRow title="Get around" subtitle="Scooters and cars for exploring the islands" href="/explore?cat=rentals" listings={[...(hub?.scooters ?? []), ...(hub?.cars ?? [])]} testId="row-rentals" />
         <ListingRow
           title="Food delivery"
-          subtitle={`Coffee, drinks and meals from ${brandOf(settings, "cafe").name}`}
-          href="/explore?cat=food"
+          subtitle={hub && new Set(hub.food.map((l) => l.business)).size > 1 ? "Coffee, meals and more from local stores" : `Coffee, drinks and meals from ${brandOf(settings, "cafe").name}`}
+          href="/food"
           listings={(hub?.food ?? []).filter((l) => l.photo && !l.badge).slice(0, 10)}
           testId="row-food"
         />
@@ -128,7 +128,7 @@ function CategoryCards({ hub, minFee }: { hub: HubData | null; minFee: number | 
     },
     {
       id: "food",
-      href: "/explore?cat=food",
+      href: "/food",
       emoji: "🍜",
       tint: "bg-amber-100",
       name: "Food delivery",
@@ -222,7 +222,7 @@ function OurBrands({ hub }: { hub: HubData | null }) {
       <p className="mb-3 text-sm text-coffee-600">Local businesses you can book on Padaya.</p>
       <div className="grid grid-cols-2 gap-3">
         {list.map((b) => {
-          const l = BRAND_LINK[b.slug] ?? { href: "/explore", emoji: "🏪", what: b.kind };
+          const l = BRAND_LINK[b.slug] ?? (b.kind === "food" ? { href: `/food/${b.slug}`, emoji: (b as { emoji?: string }).emoji ?? "🍽️", what: "Food delivery" } : { href: "/explore", emoji: "🏪", what: b.kind });
           const src = logo(b.slug);
           return (
             <Link key={b.id} href={l.href} data-testid={`brand-${b.slug}`} className="flex items-center gap-3 rounded-2xl border border-coffee-100 bg-white p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-md">

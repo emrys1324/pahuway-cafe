@@ -12,6 +12,8 @@ export interface CartLine {
   unit_price: number;
   quantity: number;
   notes: string;
+  store_slug?: string; // food store (missing on old carts = Pahuway Cafe)
+  store_name?: string;
 }
 
 interface CartCtx {
@@ -19,6 +21,8 @@ interface CartCtx {
   count: number;
   subtotal: number;
   ready: boolean;
+  /** the store this cart is from (one store per cart) */
+  store: { slug: string; name: string } | null;
   add: (line: Omit<CartLine, "key">) => void;
   setQty: (key: string, qty: number) => void;
   setNotes: (key: string, notes: string) => void;
@@ -75,6 +79,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => ({
       lines,
       ready,
+      store: lines.length ? { slug: lines[0].store_slug ?? "pahuway-cafe", name: lines[0].store_name ?? "Pahuway Cafe" } : null,
       count: lines.reduce((s, l) => s + l.quantity, 0),
       subtotal: lines.reduce((s, l) => s + l.unit_price * l.quantity, 0),
       add,

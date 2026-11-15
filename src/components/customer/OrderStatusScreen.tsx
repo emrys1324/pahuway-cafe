@@ -9,11 +9,14 @@ import { Alert, Badge, PageLoader, Spinner } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { enableOrderPush, isNativeApp, pushAvailable, type PushResult } from "@/lib/native";
 import { formatPeso, ORDER_TYPE_LABEL } from "@/lib/format";
+import { storeHref } from "@/lib/stores";
 import { formatDateTime, formatTime } from "@/lib/hours";
 import type { OrderStatus, OrderType, PaymentMethod, PaymentStatus } from "@/lib/types";
 
 interface PublicOrder {
   order_number: string;
+  store_name?: string | null;
+  store_slug?: string | null;
   status: OrderStatus;
   order_type: OrderType;
   customer_name: string;
@@ -138,7 +141,7 @@ function Inner({ token }: { token: string }) {
     const url = window.location.origin + `/order/${token}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `Pahuway Cafe order ${order?.order_number}`, url });
+        await navigator.share({ title: `${order?.store_name ?? "Padaya"} order ${order?.order_number}`, url });
         return;
       } catch {}
     }
@@ -213,6 +216,11 @@ function Inner({ token }: { token: string }) {
             <div>
               <p className="text-sm font-semibold text-coffee-600">Order number</p>
               <p className="font-display text-4xl font-bold tracking-wide">{order.order_number}</p>
+              {order.store_name && order.store_slug !== "pahuway-cafe" && (
+                <p className="font-semibold text-coffee-800" data-testid="order-store">
+                  {order.store_name}
+                </p>
+              )}
               <p className="mt-1 text-sm text-coffee-700">
                 {ORDER_TYPE_LABEL[order.order_type]} ·{" "}
                 {order.scheduled_for ? `Scheduled ${formatTime(order.scheduled_for)}` : "ASAP"} · placed {formatDateTime(order.created_at)}
@@ -359,7 +367,7 @@ function Inner({ token }: { token: string }) {
           )}
         </section>
 
-        <Link href="/menu" className="btn-secondary w-full">
+        <Link href={storeHref(order.store_slug ?? "pahuway-cafe")} className="btn-secondary w-full">
           Back to menu
         </Link>
       </main>

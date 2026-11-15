@@ -22,6 +22,7 @@ export const STAFF_PAGES: { href: string; label: string; perms: Perm[] }[] = [
   { href: "/admin", label: "Orders", perms: ["orders"] },
   { href: "/admin/stock", label: "Sold out", perms: ["stock", "menu"] },
   { href: "/admin/menu", label: "Menu", perms: ["menu"] },
+  { href: "/admin/stores", label: "Stores", perms: ["menu"] },
   { href: "/admin/options", label: "Options", perms: ["menu"] },
   { href: "/admin/zones", label: "Zones", perms: ["zones"] },
   { href: "/admin/summary", label: "Summary", perms: ["sales"] },

@@ -33,7 +33,7 @@ export function RiderScreen() {
     const startOfDay = new Date(Date.now() - (minutes * 60 + seconds) * 1000).toISOString();
     const { data, error } = await getSupabase()
       .from("orders")
-      .select("*, order_items(*)")
+      .select("*, order_items(*), businesses(name, slug)")
       .or(`status.in.(received,preparing,ready,out_for_delivery),completed_at.gte.${startOfDay}`)
       .order("created_at");
     if (error) return setError(error.message);
@@ -137,6 +137,14 @@ export function RiderScreen() {
                 </Badge>
               </div>
               <div className="space-y-3 p-4">
+                {(() => {
+                  const st = (o as unknown as { businesses?: { name: string; slug: string } | null }).businesses;
+                  return st && st.slug !== "pahuway-cafe" ? (
+                    <p className="rounded-xl bg-orange-50 px-3 py-2 font-bold text-orange-900" data-testid="rider-pickup-store">
+                      🏪 Pick up at {st.name}
+                    </p>
+                  ) : null;
+                })()}
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-lg font-bold">{o.customer_name}</p>

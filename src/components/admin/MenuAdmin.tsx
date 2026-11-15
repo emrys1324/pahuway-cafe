@@ -5,12 +5,22 @@ import { getSupabase } from "@/lib/supabase/client";
 import { formatPeso } from "@/lib/format";
 import { deletePublicImage, uploadPublicImage } from "@/lib/upload";
 import type { Category, MenuItem, OptionGroup } from "@/lib/types";
+import { MAIN_STORE, useStores } from "@/lib/stores";
 
 type Draft = Partial<MenuItem> & { groupIds: string[] };
 
 export function MenuAdmin() {
-  const [cats, setCats] = useState<Category[] | null>(null);
-  const [items, setItems] = useState<MenuItem[]>([]);
+  const stores = useStores(true);
+  const [storeId, setStoreId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!stores || storeId) return;
+    const want = new URLSearchParams(window.location.search).get("store");
+    setStoreId(stores.find((x) => x.id === want)?.id ?? stores.find((x) => x.slug === MAIN_STORE)?.id ?? stores[0]?.id ?? null);
+  }, [stores, storeId]);
+  const [allCats, setCats] = useState<Category[] | null>(null);
+  const [allItems, setItems] = useState<MenuItem[]>([]);
+  const cats = allCats && storeId ? allCats.filter((c) => (c.business_id ?? null) === storeId) : allCats;
+  const items = storeId ? allItems.filter((i) => (i.business_id ?? null) === storeId) : allItems;
   const [groups, setGroups] = useState<OptionGroup[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<Draft | null>(null);
@@ -34,7 +44,7 @@ export function MenuAdmin() {
     load();
   }, [load]);
 
-  if (!cats) return error ? <Alert>{error}</Alert> : <PageLoader />;
+  if (!cats || !stores) return error ? <Alert>{error}</Alert> : <PageLoader />;
 
   const patchItem = async (id: string, patch: Partial<MenuItem>) => {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i))); // optimistic
@@ -55,7 +65,7 @@ export function MenuAdmin() {
     if (!newCat.trim()) return;
     const { error } = await getSupabase()
       .from("menu_categories")
-      .insert({ name: newCat.trim(), sort_order: (cats.at(-1)?.sort_order ?? 0) + 1 });
+      .insert({ name: newCat.trim(), sort_order: (cats.at(-1)?.sort_order ?? 0) + 1, business_id: storeId });
     if (error) return setError(error.message);
     setNewCat("");
     load();
@@ -74,7 +84,28 @@ export function MenuAdmin() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-display text-2xl font-bold">Menu</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-display text-2xl font-bold">Menu</h1>
+          {stores.length > 1 && (
+            <select
+              aria-label="Store"
+              data-testid="menu-store"
+              className="input !w-auto !py-1.5"
+              value={storeId ?? ""}
+              onChange={(e) => {
+                setStoreId(e.target.value);
+                setFilter("all");
+              }}
+            >
+              {stores.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.emoji} {st.name}
+                  {st.is_active ? "" : " (hidden)"}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <button
           className="btn-primary"
           onClick={() => setEditing({ category_id: filter !== "all" && filter !== "no-photo" ? filter : cats[0]?.id, price: 0, is_active: true, is_sold_out: false, groupIds: [] })}

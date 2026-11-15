@@ -64,6 +64,7 @@ export interface StoreSettings {
 
 export interface Category {
   id: string;
+  business_id?: string | null;
   name: string;
   sort_order: number;
   is_active: boolean;
@@ -92,6 +93,7 @@ export interface OptionGroup {
 export interface MenuItem {
   id: string;
   category_id: string;
+  business_id?: string | null;
   name: string;
   description: string | null;
   price: number;
@@ -137,6 +139,7 @@ export interface OrderItemRow {
 
 export interface Order {
   id: string;
+  business_id?: string | null;
   order_number: string;
   public_token: string;
   customer_id: string | null;

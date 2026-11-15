@@ -59,9 +59,9 @@ export function useHubListings(): HubData | null {
       sb.from("scooters").select("id, name, daily_rate, photo_url, vehicle_type, seats, transmission, fuel, driver_fee, business_id").eq("is_active", true).order("sort_order").order("name"),
       sb.from("stay_settings").select("bookings_enabled, terms").eq("id", 1).maybeSingle(),
       sb.from("stay_rooms").select("id, name, nightly_rate, weekend_rate, photos, max_guests, stay_properties!inner(id, name, location_text, photos, is_active, town)").eq("is_active", true).eq("stay_properties.is_active", true).order("sort_order"),
-      sb.from("businesses").select("id, slug, name, kind, town").order("name"),
+      sb.from("businesses").select("id, slug, name, kind, town, is_active, emoji").order("name"),
     ]).then(([c, m, s, ss, sr, bz]) => {
-      const businesses = (bz.data as Business[]) ?? [];
+      const businesses = ((bz.data as (Business & { is_active: boolean })[]) ?? []).filter((b) => b.is_active);
       const biz = new Map(businesses.map((b) => [b.id, b]));
       const townOf = (id: string | null | undefined) => (id && biz.get(id)?.town) || "San Agustin";
       const slugOf = (id: string | null | undefined) => (id && biz.get(id)?.slug) || undefined;
@@ -72,7 +72,7 @@ export function useHubListings(): HubData | null {
       const vehicles = (s.data as V[]) ?? [];
       const scooters = vehicles.filter((v) => (v.vehicle_type ?? "scooter") === "scooter");
       const cars = vehicles.filter((v) => v.vehicle_type === "car");
-      const available = items.filter((i) => !i.is_sold_out);
+      const available = items.filter((i) => !i.is_sold_out && (!i.business_id || biz.has(i.business_id)));
       type R = { id: string; name: string; nightly_rate: number; weekend_rate: number | null; photos: string[]; max_guests: number; stay_properties: { id: string; name: string; location_text: string | null; photos: string[]; town: string } };
       const staysOpen = !!ss.data?.bookings_enabled && !!(ss.data?.terms as string | null)?.trim();
       const rooms = staysOpen ? ((sr.data as unknown as R[]) ?? []) : [];
@@ -82,12 +82,12 @@ export function useHubListings(): HubData | null {
         businesses,
         properties: [...props.values()],
         categories: cats,
-        food: items.map((i) => ({
+        food: items.filter((i) => !i.business_id || biz.has(i.business_id)).map((i) => ({
           kind: "menu_item" as const,
           id: i.id,
-          href: `/menu?item=${i.id}`,
+          href: slugOf(i.business_id) && slugOf(i.business_id) !== "pahuway-cafe" ? `/food/${slugOf(i.business_id)}?item=${i.id}` : `/menu?item=${i.id}`,
           title: i.name,
-          subtitle: `${catName.get(i.category_id) ?? "Menu"} · Pahuway Cafe`,
+          subtitle: `${catName.get(i.category_id) ?? "Menu"} · ${(i.business_id && biz.get(i.business_id)?.name) || "Pahuway Cafe"}`,
           price: formatPeso(i.price),
           photo: i.photo_url,
           badge: i.is_sold_out ? "Sold out" : null,

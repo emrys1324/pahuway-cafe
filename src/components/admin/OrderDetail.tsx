@@ -11,7 +11,7 @@ import { googleMapsPin, toLatLng } from "@/lib/maps";
 
 const REJECT_REASONS = ["Item not available", "Outside our delivery area", "GCash payment not received", "We're about to close", "Couldn't reach customer"];
 
-export function OrderDetail({ order, riders, onClose }: { order: Order | null; riders: Rider[]; onClose: () => void }) {
+export function OrderDetail({ order, riders, onClose, store }: { order: Order | null; riders: Rider[]; onClose: () => void; store?: string | null }) {
   const { can } = useStaffAccess();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +74,7 @@ export function OrderDetail({ order, riders, onClose }: { order: Order | null; r
       title={
         <span className="flex items-center gap-2">
           {o.order_number}
+          {store && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-800">{store}</span>}
           <Badge tone={o.status === "cancelled" ? "red" : o.status === "completed" ? "green" : "amber"}>{STATUS_LABEL[o.status]}</Badge>
         </span>
       }

@@ -17,11 +17,12 @@ const PASS = "Kape-sa-umaga-1";
   sql("update store_settings set is_open = true, open_time = '00:00', close_time = '23:59', welcome_banner_color = null");
   sql("update rental_settings set bookings_enabled = true, terms = coalesce(nullif(terms, ''), 'Test terms.')");
   sql("update stay_settings set bookings_enabled = false"); // Stays stay "Soon" here; stays have their own test
+  sql("update businesses set is_active = false where slug = 'kusina-sa-hiraya'"); // one food store here; stores have their own test
   sql("update scooters set is_active = false where vehicle_type = 'car'"); // Cars stay "Soon" here; the car flow has its own test
   sql("insert into scooters (name, daily_rate, is_active) select 'Hub Scooter', 650, true where not exists (select 1 from scooters where is_active and vehicle_type = 'scooter')");
   const res = await fetch(BASE + "/api/account/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Hana Hub", phone: PHONE, password: PASS }) });
   assert(res.ok, "test customer created");
-  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,padaya-stays,padaya-tours,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe, Baybayin, Padaya Stays and Padaya Tours; every scooter belongs to Baybayin");
+  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,kusina-sa-hiraya,padaya-stays,padaya-tours,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe, Baybayin, Padaya Stays, Padaya Tours, Kusina sa Hiraya; every scooter belongs to Baybayin");
 
   const browser = await chromium.launch();
   try {
@@ -79,7 +80,7 @@ const PASS = "Kape-sa-umaga-1";
     assert(true, "Tours: coming soon page");
     await g.goto(BASE + "/explore?cat=food");
     await g.getByTestId("results").waitFor();
-    const nFood = Number(sql("select count(*) from menu_items where is_active"));
+    const nFood = Number(sql("select count(*) from menu_items m join businesses b on b.id = m.business_id where m.is_active and b.is_active"));
     assert((await g.getByTestId("results").getByTestId("listing-card").count()) === nFood, `Food filter lists the whole menu (${nFood})`);
     assert((await g.getByTestId("nav-food").getAttribute("aria-current")) === "page", "Explore → Food highlights the Food footer tab");
     assert(minFood > 0, "menu has prices");
@@ -114,7 +115,7 @@ const PASS = "Kape-sa-umaga-1";
     assert(sql(`select count(*) from favourites f join auth.users a on a.id = f.user_id where a.email = '${PHONE}@phone.invalid'`) === "0", "tapping ♡ again removes it");
 
     // ---- deep links
-    const item = sql("select id || '|' || name from menu_items where is_active and not is_sold_out order by sort_order, name limit 1").split("|");
+    const item = sql("select m.id || '|' || m.name from menu_items m join businesses b on b.id = m.business_id where m.is_active and not m.is_sold_out and b.slug = 'pahuway-cafe' order by m.sort_order, m.name limit 1").split("|");
     await c.goto(BASE + "/menu?item=" + item[0]);
     await c.getByRole("dialog").getByText(item[1]).first().waitFor({ timeout: 10000 });
     assert(true, "a menu card opens that item straight away on the menu");

@@ -1,4 +1,5 @@
 "use client";
+import { MAIN_STORE, useStores } from "@/lib/stores";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Badge, PageLoader } from "@/components/ui";
 import { getAuthedSupabase, getSupabase } from "@/lib/supabase/client";
@@ -28,6 +29,8 @@ export function OrdersBoard() {
   const [soundOn, setSoundOn] = useState(false);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState("new");
+  const stores = useStores(true);
+  const [storeFilter, setStoreFilter] = useState("all");
   const [showDone, setShowDone] = useState(false);
   const [live, setLive] = useState(false);
   const soundRef = useRef(false);
@@ -130,12 +133,17 @@ export function OrdersBoard() {
     return () => clearInterval(t);
   }, [newCount, soundOn]);
 
+  const shownOrders = useMemo(() => (orders ?? []).filter((o) => storeFilter === "all" || o.business_id === storeFilter), [orders, storeFilter]);
   const byColumn = useMemo(() => {
     const m: Record<string, Order[]> = {};
-    for (const c of COLUMNS) m[c.key] = (orders ?? []).filter((o) => c.statuses.includes(o.status));
+    for (const c of COLUMNS) m[c.key] = shownOrders.filter((o) => c.statuses.includes(o.status));
     return m;
-  }, [orders]);
-  const done = (orders ?? []).filter((o) => o.status === "completed" || o.status === "cancelled").reverse();
+  }, [shownOrders]);
+  const done = shownOrders.filter((o) => o.status === "completed" || o.status === "cancelled").reverse();
+  const storeName = (id?: string | null) => {
+    const st = stores?.find((x) => x.id === id);
+    return st && st.slug !== MAIN_STORE ? st.name : null;
+  };
   const selected = orders?.find((o) => o.id === selectedId) ?? null;
 
   if (!orders && !error) return <PageLoader />;
@@ -145,6 +153,16 @@ export function OrdersBoard() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl font-bold">Orders</h1>
+          {stores && stores.length > 1 && (
+            <select aria-label="Store" className="input !w-auto !py-1.5 text-sm" value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)} data-testid="store-filter">
+              <option value="all">All stores</option>
+              {stores.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name}
+                </option>
+              ))}
+            </select>
+          )}
           <span className={`flex items-center gap-1.5 text-xs font-semibold ${live ? "text-sage-700" : "text-red-700"}`}>
             <span className={`h-2 w-2 rounded-full ${live ? "bg-sage-500" : "bg-red-600"}`} aria-hidden />
             {live ? "Live" : "Reconnecting…"}
@@ -193,7 +211,7 @@ export function OrdersBoard() {
             <div className="space-y-2">
               {byColumn[c.key].length === 0 && <p className="px-2 py-6 text-center text-sm text-coffee-500">Nothing here</p>}
               {byColumn[c.key].map((o) => (
-                <OrderCard key={o.id} order={o} fresh={fresh.has(o.id)} riders={riders} onOpen={() => setSelectedId(o.id)} />
+                <OrderCard key={o.id} order={o} fresh={fresh.has(o.id)} riders={riders} store={storeName(o.business_id)} onOpen={() => setSelectedId(o.id)} />
               ))}
             </div>
           </section>
@@ -208,18 +226,18 @@ export function OrdersBoard() {
         {showDone && (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {done.map((o) => (
-              <OrderCard key={o.id} order={o} riders={riders} onOpen={() => setSelectedId(o.id)} />
+              <OrderCard key={o.id} order={o} riders={riders} store={storeName(o.business_id)} onOpen={() => setSelectedId(o.id)} />
             ))}
           </div>
         )}
       </section>
 
-      <OrderDetail order={selected} riders={riders} onClose={() => setSelectedId(null)} />
+      <OrderDetail order={selected} riders={riders} store={storeName(selected?.business_id)} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
 
-function OrderCard({ order: o, fresh, riders, onOpen }: { order: Order; fresh?: boolean; riders: Rider[]; onOpen: () => void }) {
+function OrderCard({ order: o, fresh, riders, onOpen, store }: { order: Order; fresh?: boolean; riders: Rider[]; onOpen: () => void; store?: string | null }) {
   const items = o.order_items ?? [];
   const rider = riders.find((r) => r.id === o.rider_id);
   return (
@@ -235,6 +253,11 @@ function OrderCard({ order: o, fresh, riders, onOpen }: { order: Order; fresh?: 
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
+        {store && (
+          <span data-testid="order-store-badge" className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-800">
+            {store}
+          </span>
+        )}
         <Badge tone={o.order_type === "delivery" ? "blue" : o.order_type === "dine_in" ? "brown" : "gray"}>{ORDER_TYPE_LABEL[o.order_type]}</Badge>
         {o.scheduled_for ? <Badge tone="amber">⏰ {formatTime(o.scheduled_for)}</Badge> : <Badge tone="gray">ASAP</Badge>}
         {o.payment_method === "gcash" && <Badge tone={o.payment_status === "paid" ? "green" : "red"}>{o.payment_status === "paid" ? "GCash ✓" : "GCash – verify"}</Badge>}
