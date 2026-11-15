@@ -21,7 +21,7 @@ const PASS = "Kape-sa-umaga-1";
   sql("insert into scooters (name, daily_rate, is_active) select 'Hub Scooter', 650, true where not exists (select 1 from scooters where is_active and vehicle_type = 'scooter')");
   const res = await fetch(BASE + "/api/account/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Hana Hub", phone: PHONE, password: PASS }) });
   assert(res.ok, "test customer created");
-  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,padaya-stays,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe, Baybayin and Padaya Stays; every scooter belongs to Baybayin");
+  assert(sql("select string_agg(slug, ',' order by slug) from businesses") === "baybayin,padaya-stays,padaya-tours,pahuway-cafe" && sql("select count(*) from scooters where business_id is null") === "0", "businesses: Pahuway Cafe, Baybayin, Padaya Stays and Padaya Tours; every scooter belongs to Baybayin");
 
   const browser = await chromium.launch();
   try {
@@ -31,10 +31,25 @@ const PASS = "Kape-sa-umaga-1";
 
     // ---- home: search, pills, tiles, rows
     assert((await g.getByTestId("hub-search").getByRole("searchbox").count()) + (await g.getByLabel("Search Padaya").count()) >= 1, "home has a search box for food, scooters, cars or stays");
-    const tiles = (await g.getByTestId("home-collage").getByRole("link").allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim());
-    assert(tiles.length === 4 && /Food/.test(tiles[0]) && /Vehicle Rentals/.test(tiles[1]) && /Stays.*Coming soon/i.test(tiles[2]) && /Tours.*Coming soon/i.test(tiles[3]), `category collage: Food, Vehicle Rentals, Stays/Tours Coming soon (${tiles.join(" / ")})`);
+    const cats = (await g.getByTestId("home-categories").getByRole("link").allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim());
+    assert(cats.length === 4 && /Stays .*Coming soon/i.test(cats[0]) && /Rentals/.test(cats[1]) && /Food delivery/.test(cats[2]) && /Tours .*Coming soon/i.test(cats[3]), `category cards: Stays (Coming soon), Rentals, Food delivery, Tours (Coming soon) (${cats.join(" / ")})`);
     const minFood = Number(sql("select min(price) from menu_items where is_active and not is_sold_out"));
-    assert((await g.getByTestId("collage-food").innerText()).includes(`From ₱${minFood}`), "Food card shows its lowest price");
+    assert((await g.getByTestId("cat-food").innerText()).includes("1 store") && (await g.getByTestId("cat-rentals").innerText()).includes("1 shop"), "Food delivery: 1 store; Rentals: 1 shop");
+    // ---- island / town filter (everything is in San Agustin, Tablas for now)
+    assert((await g.getByTestId("island-tablas").innerText()).includes("listings") && /coming soon/i.test(await g.getByTestId("island-sibuyan").innerText()), "Explore by island: Tablas shows its listings; Sibuyan is coming soon");
+    await g.getByTestId("loc-sibuyan").click();
+    await g.getByTestId("loc-empty").getByText("Nothing is listed in Sibuyan yet.").waitFor();
+    assert((await g.getByTestId("town-bar").getByRole("radio").allInnerTexts()).join("|") === "All towns|Cajidiocan|Magdiwang|San Fernando" && (await g.getByTestId("row-food").count()) === 0, "picking Sibuyan shows its towns and hides listings from other islands");
+    await g.reload();
+    await g.getByTestId("loc-empty").waitFor();
+    assert((await g.getByTestId("loc-sibuyan").getAttribute("aria-checked")) === "true", "the chosen island is remembered on this phone");
+    await g.getByTestId("loc-empty").getByRole("button", { name: "Show all of Romblon" }).click();
+    await g.getByTestId("row-food").waitFor();
+    await g.getByTestId("island-tablas").click();
+    await g.getByTestId("town-bar").getByRole("radio", { name: "San Agustin" }).click();
+    await g.getByTestId("row-food").waitFor();
+    assert((await g.getByTestId("loc-tablas").getAttribute("aria-checked")) === "true" && (await g.getByTestId("our-brands").innerText()).includes("San Agustin"), "tapping the Tablas card filters to Tablas; San Agustin shows its brands and listings");
+    await g.getByTestId("loc-all").click();
     const card = g.getByTestId("row-food").getByTestId("listing-card").first();
     assert(/₱\d/.test(await card.innerText()) && (await card.innerText()).includes("Pahuway Cafe"), "menu listing card shows name, category · Pahuway Cafe and price");
 
@@ -66,7 +81,8 @@ const PASS = "Kape-sa-umaga-1";
     await g.getByTestId("results").waitFor();
     const nFood = Number(sql("select count(*) from menu_items where is_active"));
     assert((await g.getByTestId("results").getByTestId("listing-card").count()) === nFood, `Food filter lists the whole menu (${nFood})`);
-    assert((await g.getByTestId("nav-explore").getAttribute("aria-current")) === "page", "Explore is a footer tab");
+    assert((await g.getByTestId("nav-food").getAttribute("aria-current")) === "page", "Explore → Food highlights the Food footer tab");
+    assert(minFood > 0, "menu has prices");
 
     // ---- guest ♡ → sign in; Saved needs sign-in
     await g.getByTestId("results").getByTestId("fav-button").first().click();

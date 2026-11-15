@@ -1,4 +1,4 @@
-// Customer footer (Home · Activity · Messages) and the Messages inbox (automatic order/booking updates).
+// Customer footer (Home · Stays · Rentals · Food · Trips), Messages icon in the header, and the Messages inbox (automatic order/booking updates).
 // Needs local Supabase (migrations + seed) + seed:users + app on :3000.  Run: npm run test:nav
 const { chromium, devices } = require("playwright");
 const { execFileSync } = require("child_process");
@@ -30,21 +30,36 @@ const PASS = "Kape-sa-umaga-1";
     await g.goto(BASE + "/");
     const nav = g.getByTestId("bottom-nav");
     await nav.waitFor();
-    assert((await nav.getByRole("link").allInnerTexts()).map((t) => t.trim()).join("|") === "Home|Explore|Activity|Messages", "footer has Home, Explore, Activity and Messages tabs");
+    assert((await nav.getByRole("link").allInnerTexts()).map((t) => t.trim()).join("|") === "Home|Stays|Rentals|Food|Trips", "footer has Home, Stays, Rentals, Food and Trips tabs");
+    assert((await g.getByTestId("customer-header").getByTestId("nav-messages").count()) === 1, "Messages is an icon in the header");
+    await g.getByTestId("nav-stays").click();
+    await g.waitForURL(BASE + "/stays");
+    assert((await g.getByTestId("nav-stays").getAttribute("aria-current")) === "page", "Stays tab opens Stays");
+    await g.getByTestId("nav-rentals").click();
+    await g.waitForURL(BASE + "/explore?cat=rentals");
+    await g.getByTestId("choose-scooter").waitFor();
+    assert((await g.getByTestId("nav-rentals").getAttribute("aria-current")) === "page", "Rentals tab opens Vehicle Rentals (Book a scooter, scooters & cars)");
+    await g.getByTestId("nav-food").click();
+    await g.waitForURL(BASE + "/explore?cat=food");
+    await g.getByTestId("choose-cafe").waitFor();
+    await g.waitForFunction(() => document.querySelector("[data-testid=nav-food]")?.getAttribute("aria-current") === "page", null, { timeout: 5000 });
+    assert(true, "Food tab opens Food delivery (Order food & drinks card, menu items)");
+    await g.getByTestId("nav-home").click();
+    await g.waitForURL(BASE + "/");
     const box = await nav.boundingBox();
     const vh = g.viewportSize().height;
     assert(box.y + box.height >= vh - 1 && (await g.getByTestId("nav-home").getAttribute("aria-current")) === "page", "footer is fixed to the bottom of the screen; Home is the current tab");
     await g.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const lastBottom = await g.evaluate(() => { const els = [...document.querySelectorAll("main > *")]; return els[els.length - 1].getBoundingClientRect().bottom; });
     assert(lastBottom <= box.y + 1, "the page leaves room so the footer never covers content");
-    await g.getByTestId("nav-activity").click();
+    await g.getByTestId("nav-trips").click();
     await g.waitForURL(BASE + "/activity");
     await g.getByTestId("activity-signin").waitFor();
-    assert((await g.getByTestId("nav-activity").getAttribute("aria-current")) === "page", "Activity tab: guests are asked to sign in to see their orders and rentals");
+    assert((await g.getByTestId("nav-trips").getAttribute("aria-current")) === "page" && (await g.getByRole("heading", { name: "My trips" }).count()) === 1, "Trips tab (My trips): guests are asked to sign in to see their orders and bookings");
     await g.getByTestId("nav-messages").click();
     await g.waitForURL(BASE + "/messages");
     await g.getByTestId("messages-signin").waitFor();
-    assert(true, "Messages tab: guests are asked to sign in to get updates");
+    assert(true, "Messages (header icon): guests are asked to sign in to get updates");
     // menu: the View cart bar sits above the footer
     await g.goto(BASE + "/menu");
     await g.locator("article", { hasText: "Double espresso over hot water" }).getByRole("button", { name: /^Add/ }).click();
@@ -81,7 +96,7 @@ const PASS = "Kape-sa-umaga-1";
     assert(!placed.error, "customer placed an order " + (placed.error?.message ?? ""));
     const no = placed.data.order_number;
     await c.getByTestId("unread-badge").getByText("1").waitFor({ timeout: 10000 });
-    assert(true, "Messages tab shows a red unread badge (1) as soon as the order is received — live, no reload");
+    assert(true, "the Messages icon shows a red unread badge (1) as soon as the order is received — live, no reload");
     sql(`update orders set status = 'ready' where order_number = '${no}'`);
     await c.getByTestId("unread-badge").getByText("2").waitFor({ timeout: 10000 });
     assert(true, "badge goes to 2 when staff mark the order ready");
@@ -100,13 +115,13 @@ const PASS = "Kape-sa-umaga-1";
     assert(true, "a new update appears on the open Messages page live");
     await list.getByTestId("message").first().click();
     await c.waitForURL(/\/order\/[0-9a-f-]{36}/);
-    assert((await c.getByTestId("nav-activity").getAttribute("aria-current")) === "page", "tapping a message opens the order; the Activity tab is highlighted on order pages");
+    assert((await c.getByTestId("nav-trips").getAttribute("aria-current")) === "page", "tapping a message opens the order; the Trips tab is highlighted on order pages");
 
     // ---- Activity: the customer's orders
-    await c.getByTestId("nav-activity").click();
+    await c.getByTestId("nav-trips").click();
     await c.waitForURL(BASE + "/activity");
     await c.getByTestId("history-orders").getByText(no).waitFor();
-    assert((await c.getByTestId("history").getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Rentals (0)|Stays (0)", "Activity shows Orders / Rentals / Stays tabs with the customer's order");
+    assert((await c.getByTestId("history").getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Rentals (0)|Stays (0)", "My trips shows Orders / Rentals / Stays tabs with the customer's order");
     await c.getByTestId("nav-home").click();
     await c.waitForURL(BASE + "/");
     assert(true, "Home tab returns to the landing page");

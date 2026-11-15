@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { MessageIcon, useUnreadMessages } from "./BottomNav";
 import { formatClock } from "@/lib/hours";
 import type { StoreSettings } from "@/lib/types";
 import { useStoreSettings } from "@/lib/store-settings";
@@ -75,6 +76,7 @@ export function StoreHeader({ settings, open, back, brand = "cafe" }: { settings
               )}
             </span>
           )}
+          <MessagesLink />
           <Link href="/account" className="btn-ghost btn-sm h-10 w-10 !px-0 !text-[color:var(--hfg,#5a3a25)] hover:!bg-[color:var(--hhover,#efe4d8)]" aria-label="My account">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <circle cx="12" cy="8" r="4" />
@@ -84,5 +86,26 @@ export function StoreHeader({ settings, open, back, brand = "cafe" }: { settings
         </div>
       </div>
     </header>
+  );
+}
+
+/** Messages (order, booking and stay updates) with a live unread badge — in the header, next to My account. */
+function MessagesLink() {
+  const unread = useUnreadMessages();
+  return (
+    <Link
+      href="/messages"
+      data-testid="nav-messages"
+      className="btn-ghost btn-sm relative h-10 w-10 !px-0 !text-[color:var(--hfg,#5a3a25)] hover:!bg-[color:var(--hhover,#efe4d8)]"
+      aria-label={unread ? `Messages, ${unread} unread` : "Messages"}
+    >
+      <MessageIcon filled={false} />
+      {unread > 0 && (
+        <span data-testid="unread-badge" className="absolute right-0.5 top-0.5 min-w-[18px] rounded-full bg-red-600 px-1 text-center text-[11px] font-bold leading-[18px] text-white">
+          {unread > 9 ? "9+" : unread}
+          <span className="sr-only"> unread</span>
+        </span>
+      )}
+    </Link>
   );
 }

@@ -17,7 +17,7 @@ const assert = (c, m) => {
   const ctx = await browser.newContext(devices["Pixel 7"]);
   const page = await ctx.newPage();
   await page.goto(BASE + "/");
-  await page.getByTestId("home-collage").waitFor();
+  await page.getByTestId("home-categories").waitFor();
   const head = await page.evaluate(() => ({
     manifest: !!document.querySelector('link[rel="manifest"]'),
     appleTitle: document.querySelector('meta[name="apple-mobile-web-app-title"]')?.getAttribute("content"),
@@ -44,7 +44,7 @@ const assert = (c, m) => {
 
   // ---- install button (Android/desktop Chrome)
   await page.goto(BASE + "/");
-  await page.getByTestId("home-collage").waitFor();
+  await page.getByTestId("home-categories").waitFor();
   assert((await page.getByTestId("install-prompt").count()) === 0, "no install card until the browser says the app can be installed");
   await page.evaluate(() => {
     const e = new Event("beforeinstallprompt", { cancelable: true });
@@ -63,7 +63,7 @@ const assert = (c, m) => {
   assert((await ios.getByTestId("ios-steps").textContent()).includes("Add to Home Screen"), "iPhone: shows Share → Add to Home Screen steps");
   await ios.getByRole("button", { name: "Not now" }).click();
   await ios.reload();
-  await ios.getByTestId("home-collage").waitFor();
+  await ios.getByTestId("home-categories").waitFor();
   await ios.waitForTimeout(500);
   assert((await ios.getByTestId("install-prompt").count()) === 0, "'Not now' hides the tip for good on that phone");
 

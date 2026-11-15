@@ -5,6 +5,7 @@ import { getAuthedSupabase, getSupabase } from "@/lib/supabase/client";
 import { formatPeso } from "@/lib/format";
 import { uploadPublicImage } from "@/lib/upload";
 import { manilaDate } from "@/lib/rentals";
+import { TOWNS } from "@/lib/romblon";
 import { prettyYmd, STAY_STATUS_LABEL, type StayProperty, type StayRoom, type StaySettings, type StayStatus } from "@/lib/stays";
 
 interface StayBooking {
@@ -411,6 +412,7 @@ function PropertySheet({ value, onClose, onSaved }: { value: PropEdit | null; on
       name: v.name?.trim() ?? "",
       description: v.description?.trim() || null,
       location_text: v.location_text?.trim() || null,
+      town: v.town || "San Agustin",
       map_url: map,
       photos: v.photos ?? [],
       amenities: toList(amen),
@@ -436,7 +438,15 @@ function PropertySheet({ value, onClose, onSaved }: { value: PropEdit | null; on
           <Toggle checked={!!v.is_active} onChange={(x) => set("is_active", x)} label="Show property" />
         </label>
         <Field label="Name" value={v.name ?? ""} onChange={(x) => set("name", x)} />
-        <Field label="Location" value={v.location_text ?? ""} onChange={(x) => set("location_text", x)} placeholder="Barangay, town" />
+        <label className="block">
+          <span className="label">Town</span>
+          <select className="input" aria-label="Town" value={v.town || "San Agustin"} onChange={(e) => set("town", e.target.value)}>
+            {TOWNS.map((t) => (
+              <option key={t.name}>{t.name}</option>
+            ))}
+          </select>
+        </label>
+        <Field label="Location" value={v.location_text ?? ""} onChange={(x) => set("location_text", x)} placeholder="Barangay, landmark" />
         <Field label="Google Maps link" value={v.map_url ?? ""} onChange={(x) => set("map_url", x)} placeholder="https://maps.app.goo.gl/…" />
         <Area label="Description" value={v.description ?? ""} onChange={(x) => set("description", x)} />
         <Field label="Amenities (comma-separated)" value={amen} onChange={setAmen} placeholder="Wi-Fi, Air-con, Parking" />

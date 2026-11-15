@@ -167,15 +167,15 @@ const assert = (c, m) => {
   await page.getByRole("heading", { name: "Hi, Lea!" }).waitFor();
   assert(true, "the customer changes the temporary password in their account and signs in with the new one");
   await page.goto(BASE + "/");
-  await page.getByTestId("welcome-title").getByText("Welcome, Lea!").waitFor();
-  assert(true, "signed in: the home page greets the customer by first name (Welcome, Lea!)");
+  await page.getByTestId("hero-eyebrow").getByText("👋 Welcome, Lea!").waitFor();
+  assert(true, "signed in: the home page greets the customer by first name (👋 Welcome, Lea! above the title)");
   await page.goto(BASE + "/menu");
   await page.waitForFunction(() => /Welcome, Lea!/.test(document.querySelector("[data-testid=menu-greeting]")?.textContent?.replace(/\s+/g, " ") ?? ""));
   assert(true, "signed in: the café menu headline says Welcome, Lea!");
   await page.goto(BASE + "/account");
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForURL(BASE + "/");
-  await page.getByTestId("welcome-title").getByText("Welcome!", { exact: true }).waitFor();
+  await page.getByTestId("welcome-title").getByText("Book all of Romblon in one place.", { exact: true }).waitFor();
   assert(true, "signed out: the normal welcome title is back");
   await page.goto(BASE + "/menu");
   await page.waitForFunction(() => /Welcome, guest!/.test(document.querySelector("[data-testid=menu-greeting]")?.textContent?.replace(/\s+/g, " ") ?? ""));
