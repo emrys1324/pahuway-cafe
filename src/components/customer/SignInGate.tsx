@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GoogleButton } from "./GoogleButton";
 
 /** Shown instead of the checkout / booking form when customers must have an account. */
-export function SignInGate({ next, what }: { next: string; what: "order" | "book" }) {
+export function SignInGate({ next, what, thing = "a scooter" }: { next: string; what: "order" | "book"; thing?: string }) {
   const href = (mode: "signin" | "signup") => `/account?next=${encodeURIComponent(next)}${mode === "signup" ? "&mode=signup" : ""}`;
   return (
     <section className="card space-y-4 p-5" data-testid="signin-gate">
@@ -12,7 +12,7 @@ export function SignInGate({ next, what }: { next: string; what: "order" | "book
         <p className="text-coffee-700">
           {what === "order"
             ? "Please sign in or create a free account to place your order. Your details are filled in for you next time, and you can see your orders anytime."
-            : "Please sign in or create a free account to book a scooter. You can see your bookings anytime under My account."}
+            : `Please sign in or create a free account to book ${thing}. You can see your bookings anytime under Activity.`}
         </p>
       </div>
       <GoogleButton next={next} />

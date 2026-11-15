@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StoreHeader } from "@/components/customer/Header";
-import { History, type MyBooking } from "@/components/customer/HistoryTabs";
+import { History, type MyBooking, type MyStay } from "@/components/customer/HistoryTabs";
 import { PageLoader } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { getRecentOrders } from "@/lib/cart";
@@ -10,10 +10,10 @@ import { getRecentBooking } from "@/lib/rentals";
 import { useStoreSettings } from "@/lib/store-settings";
 import type { Order } from "@/lib/types";
 
-/** Activity tab: the customer's café orders and scooter rentals. */
+/** Activity tab: the customer's café orders, rentals and stays. */
 export function ActivityScreen() {
   const { settings, open } = useStoreSettings();
-  const [data, setData] = useState<{ signedIn: boolean; orders: Order[]; bookings: MyBooking[] } | null>(null);
+  const [data, setData] = useState<{ signedIn: boolean; orders: Order[]; bookings: MyBooking[]; stays: MyStay[] } | null>(null);
   const [guest, setGuest] = useState<{ order: { token: string; number: string } | null; booking: { token: string; number: string } | null }>({ order: null, booking: null });
 
   useEffect(() => {
@@ -22,8 +22,8 @@ export function ActivityScreen() {
     const supabase = getSupabase();
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return setData({ signedIn: false, orders: [], bookings: [] });
-      const [o, b] = await Promise.all([
+      if (!auth.user) return setData({ signedIn: false, orders: [], bookings: [], stays: [] });
+      const [o, b, st] = await Promise.all([
         supabase.from("orders").select("*").eq("customer_id", auth.user.id).order("created_at", { ascending: false }).limit(30),
         supabase
           .from("rental_bookings")
@@ -31,8 +31,14 @@ export function ActivityScreen() {
           .eq("customer_user_id", auth.user.id)
           .order("created_at", { ascending: false })
           .limit(30),
+        supabase
+          .from("stay_bookings")
+          .select("id, booking_number, public_token, room_name, property_name, check_in, check_out, nights, total, status")
+          .eq("customer_user_id", auth.user.id)
+          .order("created_at", { ascending: false })
+          .limit(30),
       ]);
-      setData({ signedIn: true, orders: (o.data as Order[]) ?? [], bookings: (b.data as MyBooking[]) ?? [] });
+      setData({ signedIn: true, orders: (o.data as Order[]) ?? [], bookings: (b.data as MyBooking[]) ?? [], stays: (st.data as MyStay[]) ?? [] });
     })();
   }, []);
 
@@ -44,10 +50,10 @@ export function ActivityScreen() {
         {!data ? (
           <PageLoader />
         ) : data.signedIn ? (
-          <History orders={data.orders} bookings={data.bookings} />
+          <History orders={data.orders} bookings={data.bookings} stays={data.stays} />
         ) : (
           <section className="card space-y-3 p-5" data-testid="activity-signin">
-            <p className="text-coffee-800">Sign in to see all your orders and scooter rentals in one place.</p>
+            <p className="text-coffee-800">Sign in to see all your orders, rentals and stays in one place.</p>
             {(guest.order || guest.booking) && (
               <div className="flex flex-wrap gap-2">
                 {guest.order && (

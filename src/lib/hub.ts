@@ -18,6 +18,8 @@ export interface HubData {
   food: (Listing & { category: string })[];
   scooters: Listing[];
   cars: Listing[];
+  stays: Listing[];
+  minStayRate: number | null;
   categories: { id: string; name: string }[];
   minFood: number | null;
   minRate: number | null;
@@ -26,10 +28,10 @@ export interface HubData {
 
 /** Categories with "soon" decided by what's actually listed (Cars opens once a car is switched on). */
 export function hubCategories(hub: HubData | null) {
-  return HUB_CATEGORIES.map((c) => (c.id === "cars" ? { ...c, soon: !hub || hub.cars.length === 0 } : c));
+  return HUB_CATEGORIES.map((c) => (c.id === "cars" ? { ...c, soon: !hub || hub.cars.length === 0 } : c.id === "stays" ? { ...c, soon: !hub || hub.stays.length === 0 } : c));
 }
 
-/** Everything bookable, as listing cards: menu items (Pahuway Cafe) and scooters (Baybayin). */
+/** Everything bookable, as listing cards: menu items (Pahuway Cafe), scooters & cars (Baybayin), rooms (Padaya Stays). */
 export function useHubListings(): HubData | null {
   const [data, setData] = useState<HubData | null>(null);
   useEffect(() => {
@@ -38,7 +40,9 @@ export function useHubListings(): HubData | null {
       sb.from("menu_categories").select("id, name").eq("is_active", true).order("sort_order"),
       sb.from("menu_items").select("id, name, price, photo_url, is_sold_out, category_id").eq("is_active", true).order("sort_order").order("name"),
       sb.from("scooters").select("id, name, daily_rate, photo_url, vehicle_type, seats, transmission, fuel, driver_fee").eq("is_active", true).order("sort_order").order("name"),
-    ]).then(([c, m, s]) => {
+      sb.from("stay_settings").select("bookings_enabled, terms").eq("id", 1).maybeSingle(),
+      sb.from("stay_rooms").select("id, name, nightly_rate, weekend_rate, photos, max_guests, stay_properties!inner(name, location_text, photos, is_active)").eq("is_active", true).eq("stay_properties.is_active", true).order("sort_order"),
+    ]).then(([c, m, s, ss, sr]) => {
       const cats = (c.data as { id: string; name: string }[]) ?? [];
       const catName = new Map(cats.map((x) => [x.id, x.name]));
       const items = (m.data as { id: string; name: string; price: number; photo_url: string | null; is_sold_out: boolean; category_id: string }[]) ?? [];
@@ -47,6 +51,10 @@ export function useHubListings(): HubData | null {
       const scooters = vehicles.filter((v) => (v.vehicle_type ?? "scooter") === "scooter");
       const cars = vehicles.filter((v) => v.vehicle_type === "car");
       const available = items.filter((i) => !i.is_sold_out);
+      type R = { id: string; name: string; nightly_rate: number; weekend_rate: number | null; photos: string[]; max_guests: number; stay_properties: { name: string; location_text: string | null; photos: string[] } };
+      const staysOpen = !!ss.data?.bookings_enabled && !!(ss.data?.terms as string | null)?.trim();
+      const rooms = staysOpen ? ((sr.data as unknown as R[]) ?? []) : [];
+      const fromRate = (r: R) => Math.min(Number(r.nightly_rate), Number(r.weekend_rate ?? r.nightly_rate));
       setData({
         categories: cats,
         food: items.map((i) => ({
@@ -84,6 +92,17 @@ export function useHubListings(): HubData | null {
           emoji: "🚗",
         })),
         minCarRate: cars.length ? Math.min(...cars.map((x) => Number(x.daily_rate))) : null,
+        stays: rooms.map((r) => ({
+          kind: "stay" as const,
+          id: r.id,
+          href: `/stays/${r.id}`,
+          title: r.name,
+          subtitle: [r.stay_properties.name, r.stay_properties.location_text, `up to ${r.max_guests} guests`].filter(Boolean).join(" · "),
+          price: `From ${formatPeso(fromRate(r))} / night`,
+          photo: r.photos[0] ?? r.stay_properties.photos[0] ?? null,
+          emoji: "🏝️",
+        })),
+        minStayRate: rooms.length ? Math.min(...rooms.map(fromRate)) : null,
       });
     });
   }, []);

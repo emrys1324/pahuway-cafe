@@ -100,9 +100,9 @@ async function cartAndCheckout(page) {
     await guest.goto(BASE + "/activity");
     const hist = guest.getByTestId("history");
     await hist.waitFor();
-    assert((await hist.getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Scooter rentals (1)", "two tabs: Orders and Scooter rentals, with counts");
+    assert((await hist.getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Rentals (1)|Stays (0)", "tabs: Orders, Rentals and Stays, with counts");
     assert((await hist.getByTestId("history-orders").innerText()).includes(order), "Orders tab lists the customer's café order");
-    await hist.getByRole("tab", { name: /Scooter rentals/ }).click();
+    await hist.getByRole("tab", { name: /^Rentals/ }).click();
     const rentals = await hist.getByTestId("history-rentals").innerText();
     assert(rentals.includes(bk) && rentals.includes("₱500") && (await hist.getByTestId("history-orders").count()) === 0, "Scooter rentals tab lists the booking (number, scooter, dates, total, status)");
     await guest.reload();

@@ -106,7 +106,7 @@ const PASS = "Kape-sa-umaga-1";
     await c.getByTestId("nav-activity").click();
     await c.waitForURL(BASE + "/activity");
     await c.getByTestId("history-orders").getByText(no).waitFor();
-    assert((await c.getByTestId("history").getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Scooter rentals (0)", "Activity shows Orders / Scooter rentals tabs with the customer's order");
+    assert((await c.getByTestId("history").getByRole("tab").allInnerTexts()).map((t) => t.replace(/\s+/g, " ")).join("|") === "Orders (1)|Rentals (0)|Stays (0)", "Activity shows Orders / Rentals / Stays tabs with the customer's order");
     await c.getByTestId("nav-home").click();
     await c.waitForURL(BASE + "/");
     assert(true, "Home tab returns to the landing page");

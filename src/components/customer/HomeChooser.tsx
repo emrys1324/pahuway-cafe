@@ -105,7 +105,7 @@ export function HomeChooser() {
           </h2>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
             {hubCategories(hub).map((c) => {
-              const from = c.id === "food" ? hub?.minFood : c.id === "scooters" ? hub?.minRate : c.id === "cars" ? hub?.minCarRate : null;
+              const from = c.id === "food" ? hub?.minFood : c.id === "scooters" ? hub?.minRate : c.id === "cars" ? hub?.minCarRate : c.id === "stays" ? hub?.minStayRate : null;
               return (
                 <li key={c.id}>
                   <Link
@@ -120,7 +120,7 @@ export function HomeChooser() {
                     {c.soon ? (
                       <span className="rounded-full bg-coffee-100 px-2 py-0.5 text-xs font-bold text-coffee-700">Coming soon</span>
                     ) : (
-                      from != null && <span className="text-xs font-semibold text-orange-700">From {formatPeso(from)}{c.id === "scooters" || c.id === "cars" ? "/day" : ""}</span>
+                      from != null && <span className="text-xs font-semibold text-orange-700">From {formatPeso(from)}{c.id === "scooters" || c.id === "cars" ? "/day" : c.id === "stays" ? "/night" : ""}</span>
                     )}
                   </Link>
                 </li>
@@ -143,13 +143,16 @@ export function HomeChooser() {
           listings={[...(hub?.cars ?? []), ...(hub?.scooters ?? [])]}
           testId="row-rentals"
         />
+        {(hub?.stays.length ?? 0) > 0 && (
+          <ListingRow title="Top stays" subtitle="Rooms and beach houses on Tablas — book with a deposit" href="/explore?cat=stays" listings={hub!.stays} testId="row-stays" />
+        )}
         <section className="card flex items-center gap-4 p-4" data-testid="stays-teaser">
           <span aria-hidden className="text-4xl">
-            🏝️
+            {(hub?.stays.length ?? 0) > 0 ? "🧭" : "🏝️"}
           </span>
           <div>
-            <p className="font-bold">Stays and tours are coming soon</p>
-            <p className="text-sm text-coffee-700">Beach houses, rooms and island tours — book them right here in Padaya.</p>
+            <p className="font-bold">{(hub?.stays.length ?? 0) > 0 ? "Tours are coming soon" : "Stays and tours are coming soon"}</p>
+            <p className="text-sm text-coffee-700">{(hub?.stays.length ?? 0) > 0 ? "Island hopping, waterfalls and more with local guides — book them right here in Padaya." : "Beach houses, rooms and island tours — book them right here in Padaya."}</p>
           </div>
         </section>
 
