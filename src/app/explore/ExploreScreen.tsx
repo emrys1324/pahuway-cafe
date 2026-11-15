@@ -2,13 +2,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
+import { LocBar } from "@/components/customer/LocBar";
+import { inLoc, locLabel, useLoc } from "@/lib/romblon";
 import { StoreHeader } from "@/components/customer/Header";
 import { HubSearch } from "@/components/customer/HubParts";
 import { ListingCard } from "@/components/customer/ListingCard";
 import { PageLoader } from "@/components/ui";
 import { useFavourites } from "@/lib/favourites";
 import { FoodCard, ScooterCard } from "@/components/customer/CategoryCards";
-import { hubCategories, useHubListings, type HubCategory, type RentalType } from "@/lib/hub";
+import { filterHub, hubCategories, useHubListings, type HubCategory, type RentalType } from "@/lib/hub";
 import { useStoreSettings } from "@/lib/store-settings";
 
 type Filter = "all" | HubCategory | "saved";
@@ -28,7 +30,9 @@ export function ExploreScreen() {
   // old links: ?cat=scooters / ?cat=cars → Vehicle Rentals with that type
   const cat: Filter = rawCat === "scooters" || rawCat === "cars" ? "rentals" : (rawCat as Filter);
   const rtype: RentalType = rawCat === "scooters" || rawCat === "cars" ? rawCat : ((params.get("type") as RentalType | null) ?? "all");
-  const hub = useHubListings();
+  const allHub = useHubListings();
+  const [loc, setLoc] = useLoc();
+  const hub = useMemo(() => filterHub(allHub, (town) => inLoc(loc, town)), [allHub, loc]);
   const fav = useFavourites();
 
   const all = useMemo(() => (hub ? [...hub.food, ...hub.stays, ...hub.cars, ...hub.scooters] : []), [hub]);
@@ -64,6 +68,7 @@ export function ExploreScreen() {
       <main className="mx-auto max-w-5xl space-y-4 px-4 py-5">
         <h1 className="font-display text-2xl font-bold">Explore</h1>
         <HubSearch key={q} initial={q} pills={false} />
+        <LocBar />
         <div role="tablist" aria-label="Filter" className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
           {chips.map((c) => (
             <button
@@ -113,6 +118,11 @@ export function ExploreScreen() {
             </p>
             <p className="mt-2 font-display text-xl font-bold">Coming soon</p>
             <p className="text-coffee-700">{cat === "rentals" ? SOON.cars : SOON[cat]}</p>
+            {cat === "tours" && (
+              <Link href="/tours" className="btn-primary mt-4 inline-flex" data-testid="tours-notify-link">
+                Notify me when tours open
+              </Link>
+            )}
           </section>
         ) : cat === "saved" && fav.signedIn === false ? (
           <section className="card space-y-3 p-5" data-testid="saved-signin">
@@ -123,7 +133,12 @@ export function ExploreScreen() {
           </section>
         ) : results.length === 0 ? (
           <p className="card p-5 text-coffee-700" data-testid="no-results">
-            {cat === "saved" ? "Nothing saved yet — tap the ♡ on anything you like." : q ? `No results for “${q}”. Try another word.` : "Nothing here yet."}
+            {cat === "saved" ? "Nothing saved yet — tap the ♡ on anything you like." : q ? `No results for “${q}” in ${locLabel(loc)}. Try another word.` : `Nothing listed in ${locLabel(loc)} yet.`}
+            {loc.island !== "all" && (
+              <button type="button" className="ml-1 font-semibold text-orange-700 underline" onClick={() => setLoc({ island: "all", town: "all" })}>
+                Show all of Romblon
+              </button>
+            )}
           </p>
         ) : (
           <>

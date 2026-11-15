@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { StoreHeader } from "@/components/customer/Header";
+import { LocBar } from "@/components/customer/LocBar";
+import { inLoc, locLabel, useLoc } from "@/lib/romblon";
 import { PageLoader } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { formatPeso } from "@/lib/format";
@@ -12,6 +14,7 @@ import { staysOpen, useStaySettings, type StayProperty, type StayRoom } from "@/
 export function StaysScreen() {
   const { settings, open } = useStoreSettings();
   const ss = useStaySettings();
+  const [loc, setLoc] = useLoc();
   const [props, setProps] = useState<(StayProperty & { stay_rooms: StayRoom[] })[] | null>(null);
   useEffect(() => {
     getSupabase()
@@ -24,12 +27,13 @@ export function StaysScreen() {
 
   return (
     <div className="min-h-screen pb-6">
-      <StoreHeader settings={settings} open={open} brand="site" back="/" />
+      <StoreHeader settings={settings} open={open} brand="site" />
       <main className="mx-auto max-w-3xl space-y-5 px-4 py-5">
         <div>
           <h1 className="font-display text-2xl font-bold">Stays</h1>
-          <p className="text-coffee-700">Rooms and houses on Tablas Island — book with a deposit, pay the rest at check-in.</p>
+          <p className="text-coffee-700">Rooms and houses across Romblon — book with a deposit, pay the rest at check-in.</p>
         </div>
+        <LocBar />
         {!props || !ss ? (
           <PageLoader />
         ) : !staysOpen(ss) || props.length === 0 ? (
@@ -40,12 +44,19 @@ export function StaysScreen() {
             <p className="mt-2 font-display text-xl font-bold">Coming soon</p>
             <p className="text-coffee-700">Stays open here soon — beach houses and rooms on Tablas, booked right in Padaya.</p>
           </section>
+        ) : props.filter((p) => inLoc(loc, p.town)).length === 0 ? (
+          <section className="card p-6 text-center" data-testid="stays-none-here">
+            <p className="font-semibold">No stays listed in {locLabel(loc)} yet.</p>
+            <button type="button" className="btn-secondary mt-3" onClick={() => setLoc({ island: "all", town: "all" })}>
+              Show all of Romblon
+            </button>
+          </section>
         ) : (
-          props.map((p) => (
+          props.filter((p) => inLoc(loc, p.town)).map((p) => (
             <section key={p.id} className="space-y-3" data-testid="stay-property">
               <div>
                 <h2 className="font-display text-xl font-bold">{p.name}</h2>
-                {p.location_text && <p className="text-sm text-coffee-600">📍 {p.location_text}</p>}
+                <p className="text-sm text-coffee-600">📍 {[p.location_text, p.town].filter(Boolean).join(" · ")}</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {p.stay_rooms.map((r) => {

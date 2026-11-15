@@ -34,7 +34,8 @@
     "test:checkout": "node tests/checkout-chat.test.js",
     "test:hub": "node tests/hub.test.js",
     "test:cars": "node tests/cars.test.js",
-    "test:stays": "node tests/stays.test.js"
+    "test:stays": "node tests/stays.test.js",
+    "test:tours": "node tests/tours.test.js"
   },
   "dependencies": {
     "@capacitor/android": "8.6.0",

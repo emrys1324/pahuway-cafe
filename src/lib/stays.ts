@@ -14,6 +14,7 @@ export interface StayProperty {
   name: string;
   description: string | null;
   location_text: string | null;
+  town: string;
   map_url: string | null;
   photos: string[];
   amenities: string[];

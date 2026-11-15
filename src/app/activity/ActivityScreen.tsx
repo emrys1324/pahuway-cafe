@@ -10,7 +10,7 @@ import { getRecentBooking } from "@/lib/rentals";
 import { useStoreSettings } from "@/lib/store-settings";
 import type { Order } from "@/lib/types";
 
-/** Activity tab: the customer's café orders, rentals and stays. */
+/** Trips tab (/activity): the customer's café orders, rentals and stays. */
 export function ActivityScreen() {
   const { settings, open } = useStoreSettings();
   const [data, setData] = useState<{ signedIn: boolean; orders: Order[]; bookings: MyBooking[]; stays: MyStay[] } | null>(null);
@@ -46,7 +46,7 @@ export function ActivityScreen() {
     <div className="min-h-screen pb-6">
       <StoreHeader settings={settings} open={open} brand="site" />
       <main className="mx-auto max-w-lg space-y-4 px-4 py-5">
-        <h1 className="font-display text-2xl font-bold">Activity</h1>
+        <h1 className="font-display text-2xl font-bold">My trips</h1>
         {!data ? (
           <PageLoader />
         ) : data.signedIn ? (

@@ -13,6 +13,8 @@ export interface Listing {
   photo: string | null;
   badge?: string | null; // e.g. "Sold out", "New"
   emoji?: string;
+  town?: string; // town in Romblon (for the island / town filter)
+  business?: string; // business slug
 }
 
 /** Listing card (photo, ♡ save, title, subtitle, price) — used in the home rows and on Explore. */

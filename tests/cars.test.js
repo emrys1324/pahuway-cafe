@@ -62,7 +62,7 @@ const PASS = "Kape-sa-umaga-1";
     // ---- hub: Cars opens up
     await g.goto(BASE + "/");
     await g.getByTestId("row-rentals").locator("[data-kind=car]").waitFor({ timeout: 10000 });
-    assert((await g.getByTestId("collage-rentals").innerText()).includes("Scooters & cars"), "the car appears in 'Scooters and car rentals'; Vehicle Rentals covers scooters & cars");
+    assert((await g.getByTestId("cat-rentals").innerText()).includes("scooters & cars"), "the car appears in the Get around row; the Rentals card covers scooters & cars");
     await g.goto(BASE + "/explore?cat=rentals&type=cars");
     await g.getByTestId("results").waitFor();
     const card = await g.getByTestId("results").getByTestId("listing-card").innerText();

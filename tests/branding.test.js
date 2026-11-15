@@ -260,7 +260,7 @@ const assert = (c, m) => {
   assert((await cust.getByTestId("store-title").textContent()).trim() === "Pahuway Cafe", "store name restored");
   assert(sqlBay() === "", "Baybayin logo removed (scooter card back to 🛵)");
   await cust.goto(BASE + "/");
-  await cust.getByTestId("welcome-title").getByText("Welcome!").waitFor();
+  await cust.getByTestId("welcome-title").getByText("Book all of Romblon in one place.").waitFor();
   const homeTitle = (await cust.getByTestId("store-title").textContent()).trim();
   await cust.goto(BASE + "/explore?cat=rentals");
   await cust.getByTestId("choose-scooter").getByText("Scooter rentals for getting around San Agustin. Check back soon!").waitFor();
