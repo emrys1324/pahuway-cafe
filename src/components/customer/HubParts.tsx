@@ -25,7 +25,7 @@ export function HubSearch({ initial = "", pills = true, hub = null }: { initial?
         </svg>
         <input
           className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-coffee-500"
-          placeholder="Search food, scooters, cars or stays…"
+          placeholder="Search food, rides or stays…"
           aria-label="Search Padaya"
           value={q}
           onChange={(e) => setQ(e.target.value)}

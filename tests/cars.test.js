@@ -29,9 +29,9 @@ const PASS = "Kape-sa-umaga-1";
   try {
     // ---- before: the sample car is hidden → Cars still "Soon"
     const g = await (await browser.newContext(devices["iPhone 13"])).newPage();
-    await g.goto(BASE + "/");
-    await g.getByTestId("tile-cars").waitFor();
-    assert((await g.getByTestId("tile-cars").innerText()).includes("Coming soon"), "with only the hidden sample car, Cars says Coming soon");
+    await g.goto(BASE + "/explore?cat=rentals&type=cars");
+    await g.getByTestId("coming-soon").waitFor();
+    assert((await g.getByTestId("coming-soon").innerText()).includes("Car rentals are coming soon"), "with only the hidden sample car, Vehicle Rentals → Car rentals says Coming soon");
 
     // ---- staff: edit the sample car in Rentals → Vehicles and switch it on
     const admin = await (await browser.newContext(devices["iPad (gen 7) landscape"])).newPage();
@@ -60,15 +60,13 @@ const PASS = "Kape-sa-umaga-1";
     assert(saved === "Toyota Vios 2024|2800.00|manual|1200.00|true", `staff can edit the car (name, rate, transmission, driver fee) and switch it on (${saved})`);
 
     // ---- hub: Cars opens up
-    await g.reload();
-    await g.getByTestId("tile-cars").getByText("From ₱2,800/day").waitFor({ timeout: 10000 });
-    const carPill = (await g.getByTestId("pill-cars").innerText()).replace(/\s+/g, " ").trim();
-    assert(!/soon/i.test(carPill), "Cars tile shows 'From ₱2,800/day' and the Cars button is no longer 'Soon'");
-    assert((await g.getByTestId("row-rentals").locator("[data-kind=car]").count()) === 1, "the car appears in 'Scooters and car rentals'");
-    await g.goto(BASE + "/explore?cat=cars");
+    await g.goto(BASE + "/");
+    await g.getByTestId("row-rentals").locator("[data-kind=car]").waitFor({ timeout: 10000 });
+    assert((await g.getByTestId("collage-rentals").innerText()).includes("Scooters & cars"), "the car appears in 'Scooters and car rentals'; Vehicle Rentals covers scooters & cars");
+    await g.goto(BASE + "/explore?cat=rentals&type=cars");
     await g.getByTestId("results").waitFor();
     const card = await g.getByTestId("results").getByTestId("listing-card").innerText();
-    assert(card.includes("Toyota Vios 2024") && card.includes("5 seats · Manual · Gasoline") && card.includes("with or without driver"), "Explore → Cars lists it with seats, transmission, fuel and the driver option");
+    assert(card.includes("Toyota Vios 2024") && card.includes("5 seats · Manual · Gasoline") && card.includes("with or without driver"), "Vehicle Rentals → Car rentals lists it with seats, transmission, fuel and the driver option");
 
     // ---- customer books it with a driver (no license needed)
     const c = await (await browser.newContext(devices["iPhone 13"])).newPage();
