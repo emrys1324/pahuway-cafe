@@ -38,22 +38,24 @@ require("child_process").execFileSync("docker", ["exec", "-i", "supabase_db_pahu
   // ---------- Guest on a phone ----------
   const custCtx = await browser.newContext({ ...devices["iPhone 13"] });
   const cust = await custCtx.newPage(); global.cust = cust;
-  // home: choose the café or the (coming soon) scooter rental
+  // home: category collage → Vehicle Rentals (scooter card, coming soon) and Food (café card) → menu
   await cust.goto(BASE + "/");
   await cust.getByRole("heading", { name: "Welcome!" }).waitFor();
+  await cust.getByTestId("home-collage").waitFor();
+  await cust.screenshot({ path: SHOTS + "0-home.png" });
+  await cust.getByTestId("collage-rentals").click();
+  await cust.waitForURL(BASE + "/explore?cat=rentals");
   const scooter = cust.getByTestId("choose-scooter");
   await scooter.getByText("Coming soon").waitFor({ timeout: 10000 }).catch(() => {
     throw new Error("Scooter rental should show Coming soon");
   });
-  await cust.getByTestId("choose-cafe").getByText(/Open now · until/).waitFor();
-  await cust.screenshot({ path: SHOTS + "0-home.png" });
   await scooter.click();
   await cust.waitForURL(BASE + "/baybayin");
-  await cust.getByRole("link", { name: "Back to home" }).click();
-  await cust.waitForURL(BASE + "/");
+  await cust.goto(BASE + "/explore?cat=food");
+  await cust.getByTestId("choose-cafe").getByText(/Open now · until/).waitFor();
   await cust.getByTestId("choose-cafe").click();
   await cust.waitForURL(BASE + "/menu");
-  log("home: café card (open now) → menu; Baybayin card → its Coming soon page and back");
+  log("home collage → Vehicle Rentals (scooter card: Coming soon) and Food (café card, open now) → menu");
   await cust.getByRole("heading", { name: "Coffee", exact: true }).waitFor();
   await cust.screenshot({ path: SHOTS + "1-menu.png" });
   // sold-out item has no Add button

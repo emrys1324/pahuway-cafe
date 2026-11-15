@@ -31,10 +31,10 @@ const PASS = "Kape-sa-umaga-1";
 
     // ---- home: search, pills, tiles, rows
     assert((await g.getByTestId("hub-search").getByRole("searchbox").count()) + (await g.getByLabel("Search Padaya").count()) >= 1, "home has a search box for food, scooters, cars or stays");
-    const pills = (await g.getByTestId("hub-search").getByRole("link").allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim().replace(/SOON$/, "Soon"));
-    assert(pills.join("|") === "🍽️ Food|🛵 Scooters|🚗 Cars Soon|🏝️ Stays Soon|🧭 Tours Soon", `category pills: Food, Scooters, Cars/Stays/Tours marked Soon (${pills.join(" / ")})`);
+    const tiles = (await g.getByTestId("home-collage").getByRole("link").allInnerTexts()).map((t) => t.replace(/\s+/g, " ").trim());
+    assert(tiles.length === 4 && /Food/.test(tiles[0]) && /Vehicle Rentals/.test(tiles[1]) && /Stays.*Coming soon/i.test(tiles[2]) && /Tours.*Coming soon/i.test(tiles[3]), `category collage: Food, Vehicle Rentals, Stays/Tours Coming soon (${tiles.join(" / ")})`);
     const minFood = Number(sql("select min(price) from menu_items where is_active and not is_sold_out"));
-    assert((await g.getByTestId("tile-food").innerText()).includes(`From ₱${minFood}`) && (await g.getByTestId("tile-tours").innerText()).includes("Coming soon"), "What are you planning? tiles: Food from its lowest price, Tours coming soon");
+    assert((await g.getByTestId("collage-food").innerText()).includes(`From ₱${minFood}`), "Food card shows its lowest price");
     const card = g.getByTestId("row-food").getByTestId("listing-card").first();
     assert(/₱\d/.test(await card.innerText()) && (await card.innerText()).includes("Pahuway Cafe"), "menu listing card shows name, category · Pahuway Cafe and price");
 
@@ -51,9 +51,14 @@ const PASS = "Kape-sa-umaga-1";
     await g.getByTestId("results").waitFor();
     const kinds = await g.getByTestId("results").getByTestId("listing-card").evaluateAll((els) => [...new Set(els.map((e) => e.dataset.kind))]);
     assert(kinds.join() === "scooter", "searching 'scooter' shows the scooters");
-    await g.getByTestId("filter-cars").click();
+    await g.getByTestId("filter-rentals").click();
+    await g.getByTestId("rental-types").waitFor();
+    await g.getByTestId("type-cars").click();
     await g.getByTestId("coming-soon").waitFor();
-    assert((await g.getByTestId("coming-soon").innerText()).includes("Car rentals are coming soon"), "Cars: coming soon page");
+    assert((await g.getByTestId("coming-soon").innerText()).includes("Car rentals are coming soon"), "Vehicle Rentals → Car rentals: coming soon page");
+    await g.getByTestId("type-scooters").click();
+    await g.getByTestId("results").waitFor();
+    assert((await g.getByTestId("results").getByTestId("listing-card").evaluateAll((els) => [...new Set(els.map((e) => e.dataset.kind))])).join() === "scooter", "Vehicle Rentals → Scooters lists the scooters");
     await g.goto(BASE + "/explore?cat=tours");
     await g.getByTestId("coming-soon").getByText("Tours are coming soon").waitFor();
     assert(true, "Tours: coming soon page");

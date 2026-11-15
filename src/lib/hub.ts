@@ -5,11 +5,12 @@ import { formatPeso } from "@/lib/format";
 import type { Listing } from "@/components/customer/ListingCard";
 import { carSpecs } from "@/lib/rentals";
 
-export type HubCategory = "food" | "scooters" | "cars" | "stays" | "tours";
+/** Home & Explore categories. "rentals" (Vehicle Rentals) holds scooters and cars. */
+export type HubCategory = "food" | "rentals" | "stays" | "tours";
+export type RentalType = "all" | "scooters" | "cars";
 export const HUB_CATEGORIES: { id: HubCategory; label: string; emoji: string; soon: boolean }[] = [
   { id: "food", label: "Food", emoji: "🍽️", soon: false },
-  { id: "scooters", label: "Scooters", emoji: "🛵", soon: false },
-  { id: "cars", label: "Cars", emoji: "🚗", soon: true },
+  { id: "rentals", label: "Vehicle Rentals", emoji: "🛵", soon: false },
   { id: "stays", label: "Stays", emoji: "🏝️", soon: true },
   { id: "tours", label: "Tours", emoji: "🧭", soon: true },
 ];
@@ -26,10 +27,15 @@ export interface HubData {
   minCarRate: number | null;
 }
 
-/** Categories with "soon" decided by what's actually listed (Cars opens once a car is switched on). */
+/** Categories with "soon" decided by what's actually listed (Stays opens once a room is shown). */
 export function hubCategories(hub: HubData | null) {
-  return HUB_CATEGORIES.map((c) => (c.id === "cars" ? { ...c, soon: !hub || hub.cars.length === 0 } : c.id === "stays" ? { ...c, soon: !hub || hub.stays.length === 0 } : c));
+  return HUB_CATEGORIES.map((c) => (c.id === "stays" ? { ...c, soon: !hub || hub.stays.length === 0 } : c));
 }
+/** Lowest daily rate of any scooter or car. */
+export const minVehicleRate = (hub: HubData | null) => {
+  const r = [hub?.minRate, hub?.minCarRate].filter((x): x is number => x != null);
+  return r.length ? Math.min(...r) : null;
+};
 
 /** Everything bookable, as listing cards: menu items (Pahuway Cafe), scooters & cars (Baybayin), rooms (Padaya Stays). */
 export function useHubListings(): HubData | null {

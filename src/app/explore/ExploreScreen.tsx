@@ -7,7 +7,8 @@ import { HubSearch } from "@/components/customer/HubParts";
 import { ListingCard } from "@/components/customer/ListingCard";
 import { PageLoader } from "@/components/ui";
 import { useFavourites } from "@/lib/favourites";
-import { hubCategories, useHubListings, type HubCategory } from "@/lib/hub";
+import { FoodCard, ScooterCard } from "@/components/customer/CategoryCards";
+import { hubCategories, useHubListings, type HubCategory, type RentalType } from "@/lib/hub";
 import { useStoreSettings } from "@/lib/store-settings";
 
 type Filter = "all" | HubCategory | "saved";
@@ -23,7 +24,10 @@ export function ExploreScreen() {
   const params = useSearchParams();
   const router = useRouter();
   const q = (params.get("q") ?? "").trim();
-  const cat = (params.get("cat") as Filter | null) ?? (params.get("saved") ? "saved" : "all");
+  const rawCat = params.get("cat") ?? (params.get("saved") ? "saved" : "all");
+  // old links: ?cat=scooters / ?cat=cars → Vehicle Rentals with that type
+  const cat: Filter = rawCat === "scooters" || rawCat === "cars" ? "rentals" : (rawCat as Filter);
+  const rtype: RentalType = rawCat === "scooters" || rawCat === "cars" ? rawCat : ((params.get("type") as RentalType | null) ?? "all");
   const hub = useHubListings();
   const fav = useFavourites();
 
@@ -31,8 +35,7 @@ export function ExploreScreen() {
   const results = useMemo(() => {
     let list = all;
     if (cat === "food") list = hub?.food ?? [];
-    else if (cat === "scooters") list = hub?.scooters ?? [];
-    else if (cat === "cars") list = hub?.cars ?? [];
+    else if (cat === "rentals") list = rtype === "scooters" ? hub?.scooters ?? [] : rtype === "cars" ? hub?.cars ?? [] : [...(hub?.scooters ?? []), ...(hub?.cars ?? [])];
     else if (cat === "stays") list = hub?.stays ?? [];
     else if (cat === "saved") list = all.filter((l) => fav.has(l.kind, l.id));
     else if (cat !== "all") list = [];
@@ -44,12 +47,13 @@ export function ExploreScreen() {
       });
     }
     return list;
-  }, [all, hub, cat, q, fav]);
+  }, [all, hub, cat, rtype, q, fav]);
 
-  const go = (c: Filter) => {
+  const go = (c: Filter, t: RentalType = "all") => {
     const sp = new URLSearchParams();
     if (q) sp.set("q", q);
     if (c !== "all") sp.set("cat", c);
+    if (c === "rentals" && t !== "all") sp.set("type", t);
     router.replace(`/explore${sp.toString() ? "?" + sp.toString() : ""}`);
   };
   const chips: { id: Filter; label: string }[] = [{ id: "all", label: "All" }, ...hubCategories(hub).map((c) => ({ id: c.id as Filter, label: `${c.emoji} ${c.label}` })), { id: "saved", label: "♡ Saved" }];
@@ -75,15 +79,40 @@ export function ExploreScreen() {
           ))}
         </div>
 
+        {cat === "rentals" && (
+          <div role="tablist" aria-label="Vehicle type" className="flex gap-2" data-testid="rental-types">
+            {(
+              [
+                ["all", "All vehicles"],
+                ["scooters", "🛵 Scooters"],
+                ["cars", "🚗 Car rentals"],
+              ] as const
+            ).map(([t, label]) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={rtype === t}
+                onClick={() => go("rentals", t)}
+                data-testid={`type-${t}`}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${rtype === t ? "bg-coffee-800 text-cream" : "bg-coffee-100 text-coffee-800"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {cat === "food" && <FoodCard />}
+        {cat === "rentals" && rtype !== "cars" && <ScooterCard minRate={hub?.minRate ?? null} />}
+
         {!hub ? (
           <PageLoader />
-        ) : SOON[cat] && !(cat === "cars" && hub.cars.length > 0) && !(cat === "stays" && hub.stays.length > 0) ? (
+        ) : (cat === "rentals" && rtype === "cars" && hub.cars.length === 0) || (SOON[cat] && !(cat === "stays" && hub.stays.length > 0)) ? (
           <section className="card p-6 text-center" data-testid="coming-soon">
             <p className="text-4xl" aria-hidden>
-              {hubCategories(hub).find((c) => c.id === cat)?.emoji}
+              {cat === "rentals" ? "🚗" : hubCategories(hub).find((c) => c.id === cat)?.emoji}
             </p>
             <p className="mt-2 font-display text-xl font-bold">Coming soon</p>
-            <p className="text-coffee-700">{SOON[cat]}</p>
+            <p className="text-coffee-700">{cat === "rentals" ? SOON.cars : SOON[cat]}</p>
           </section>
         ) : cat === "saved" && fav.signedIn === false ? (
           <section className="card space-y-3 p-5" data-testid="saved-signin">

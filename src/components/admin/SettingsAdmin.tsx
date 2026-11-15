@@ -454,7 +454,7 @@ function BrandingSection({
               </div>
             </div>
             <div className="space-y-4 border-t border-coffee-100 pt-5" data-testid="home-card-settings">
-              <p className="font-bold">Home page cards</p>
+              <div><p className="font-bold">Category cards</p><p className="text-sm text-coffee-700">Shown at the top of Explore → Food and Explore → Vehicle Rentals. Their background photos are also used on the Home collage.</p></div>
               <div className="grid grid-cols-2 gap-3" data-testid="home-card-preview">
                 <HomeCard color={s.home_cafe_color} textColor={s.home_cafe_text_color} fallbackColor={HOME_CARD_DEFAULTS.cafe} bgUrl={s.home_cafe_bg_url} logo={s.home_cafe_logo_url || cafe.logo} emoji="☕" title="Order food & drinks" text={welcomeTexts(s).cafeCard} status="Open now" />
                 <HomeCard color={s.home_bay_color} textColor={s.home_bay_text_color} fallbackColor={HOME_CARD_DEFAULTS.bay} bgUrl={s.home_bay_bg_url} logo={s.home_bay_logo_url || bay.logo} emoji={bay.emoji} title="Book a scooter" text={welcomeTexts(s).baybayinCard} status="Book now" />

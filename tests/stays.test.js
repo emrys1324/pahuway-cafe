@@ -32,8 +32,8 @@ const PASS = "Kape-sa-umaga-1";
   try {
     const g = await (await browser.newContext(devices["iPhone 13"])).newPage();
     await g.goto(BASE + "/");
-    await g.getByTestId("tile-stays").waitFor();
-    assert((await g.getByTestId("tile-stays").innerText()).includes("Coming soon") && (await g.getByTestId("row-stays").count()) === 0, "before setup: Stays says Coming soon, no Top stays row");
+    await g.getByTestId("collage-stays").waitFor();
+    assert(/coming soon/i.test(await g.getByTestId("collage-stays").innerText()) && (await g.getByTestId("row-stays").count()) === 0, "before setup: Stays says Coming soon, no Top stays row");
     await g.goto(BASE + "/stays");
     await g.getByTestId("stays-soon").waitFor();
     assert(true, "/stays shows Coming soon while bookings are off");
@@ -85,9 +85,9 @@ const PASS = "Kape-sa-umaga-1";
 
     // ---- hub: Stays opens up
     await g.goto(BASE + "/");
-    await g.getByTestId("tile-stays").getByText("From ₱1,800/night").waitFor({ timeout: 10000 });
-    assert(!/soon/i.test((await g.getByTestId("pill-stays").innerText()).replace(/\s+/g, " ")), "Stays tile shows 'From ₱1,800/night' and the Stays button is no longer 'Soon'");
-    assert((await g.getByTestId("row-stays").getByTestId("listing-card").count()) === 1 && (await g.getByTestId("stays-teaser").innerText()).includes("Tours are coming soon"), "home shows a Top stays row; the teaser now only says Tours are coming soon");
+    await g.getByTestId("collage-stays").getByText("From ₱1,800/night").waitFor({ timeout: 10000 });
+    assert(!/soon/i.test(await g.getByTestId("collage-stays").innerText()), "the Stays collage card shows 'From ₱1,800/night', no longer Coming soon");
+    assert((await g.getByTestId("row-stays").getByTestId("listing-card").count()) === 1, "home shows a Top stays row");
     await g.goto(BASE + "/explore?cat=stays");
     await g.getByTestId("results").waitFor();
     const card = await g.getByTestId("results").getByTestId("listing-card").innerText();
